@@ -13,6 +13,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: boost
       run: brew install boost
+    - name: coreutils
+      run: brew install coreutils
     - name: libsecp
       run: git clone https://github.com/datavetaren/secp256k1-zkp ../secp256k1-zkp
     - name: build
