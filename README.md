@@ -106,7 +106,7 @@ Imagine that you have a Prolog session:
 ```
 
 Imagine that the whole world shares this prompt. You type something
-and it's get concatenated to a never ending query with everybody elses
+and it gets concatenated to a never ending query with everybody elses
 typing. Each goal gets incrementally solved. Miners bundle the queries
 together in chunks (blocks.) No one really hits "enter," or "enter" is
 continually being pressed between blocks, but the state persists. You
