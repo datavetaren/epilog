@@ -86,14 +86,14 @@ Prolog is a Turing machine complete database based on predicate logic,
 a branch in mathematics. It's a very high level language; complicated
 things can be succintly expressed and solved. Some key features are:
 
-# Code in Prolog has the same representation as data.
-# Cryptocurrency is about maintaining a consistent state.
-# Logic helps in smart contracts.
-# Immutable datastructures. Fits nicely with the "blockchain paradigm."
-# Binding variables = spending.
-# Frozen closures are mapped to UTXO spending and smart contracts execution.
-# Pragmatic. Although based on its mathematical foundation it's also pragmatic.
-# ...
+* Code in Prolog has the same representation as data.
+* Cryptocurrency is about maintaining a consistent state.
+* Logic helps in smart contracts.
+* Immutable datastructures. Fits nicely with the "blockchain paradigm."
+* Binding variables = spending.
+* Frozen closures are mapped to UTXO spending and smart contracts execution.
+* Pragmatic. Although based on its mathematical foundation it's also pragmatic.
+* ...
 
 ## What is Epilog?
 
