@@ -1,4 +1,4 @@
-# Epilog
+|[Epilog](/images/epilog.png)
 
 Mission: Combining Prolog, blockchain and cryptocurrency.
 
