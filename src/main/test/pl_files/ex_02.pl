@@ -17,7 +17,7 @@
 %
 % Setup init
 %
-?- ignore_pow(true) @ node(n1), ignore_pow(true) @ node(n2).
+?- pow_mode(none) @ node(n1), pow_mode(none) @ node(n2).
 % Expect: true
 
 %
@@ -109,7 +109,7 @@ wait_sync_complete(N, Node) :-
 % Start a 3rd node
 %
 
-?- start(node, n3, 9002), (nolimit, ignore_pow(true)) @ node(n3).
+?- start(node, n3, 9002), (nolimit, pow_mode(none)) @ node(n3).
 % Expect: true
 
 ?- sync_init(:- (assert(sync:step(4)))) @ node(n3).
@@ -132,7 +132,7 @@ wait_sync_complete(N, Node) :-
 % Should download from 3 other nodes in parallel.
 %
 
-?- start(node, n4, 9003), (nolimit, ignore_pow(true)) @ node(n4).
+?- start(node, n4, 9003), (nolimit, pow_mode(none)) @ node(n4).
 % Expect: true
 
 ?- sync_init(:- (assert(sync:step(4)))) @ node(n4).

@@ -3,6 +3,7 @@
 #include "../common/checked_cast.hpp"
 #include "../ec/builtins.hpp"
 #include "../coin/builtins.hpp"
+#include "../coin/coin.hpp"
 #include "global.hpp"
 
 using namespace epilog::common;
@@ -69,8 +70,6 @@ void global_interpreter::total_reset()
 {
     block_cache_.clear();
 
-    naming_ = false;
-    name_to_term_.clear();
     current_block_index_ = static_cast<size_t>(-2);
     current_block_ = nullptr;
     new_atoms_.clear();
@@ -209,20 +208,40 @@ void global_interpreter::preprocess_hashes(term t) {
     }
 }
 	
-bool global_interpreter::execute_goal(term t) {
+bool global_interpreter::execute_goal(term goal) {
+
+    // Find all singleton vars in goal. Store these in
+    // singleton_vars_in_goal_ that is then used in the reward/2
+    // builtin (which also consumes unspent coins.)
+    std::unordered_set<ref_cell> seen_vars;
+    singleton_vars_in_goal_.clear();
+    std::for_each( begin(goal),
+		   end(goal),
+	   [&](term t) {
+	       if (t.tag().is_ref()) {
+	           ref_cell r = reinterpret_cast<ref_cell &>(t).unwatch();
+		   bool seen = seen_vars.count(r);
+		   if (seen) {
+		       singleton_vars_in_goal_.erase(r);
+		   } else {
+		       seen_vars.insert(r);
+		       singleton_vars_in_goal_.insert(r);
+		   }
+	       } } );
+
+    
     // Check if term is a clause:
     // p(X) :- Body
     // Then we compute the hash of Body (with X unbound) and bind X to the
-    // hashed value. Then we apply commit on Body.
+    // hashed value. Then we apply commit on Body. This enables us to solve
+    // the malleability problem; no one can tamper with the transaction
+    // body if we check the digital signature based on this hash (that can
+    // be precomputed by the sender in advance.)
     //
-    preprocess_hashes(t);
+    preprocess_hashes(goal);
 
-    bool r = execute(t);
-    // If no choicepoints, then clean up the trail
-    if (!has_more()) {
-	set_register_hb(static_cast<size_t>(0));
-	tidy_trail();
-    }
+    bool r = execute(goal);
+
     return r;
 }
 
@@ -234,33 +253,15 @@ bool global_interpreter::execute_goal(buffer_t &serialized, bool silent)
     
     try {
         term goal = ser.read(serialized);
-	
-	if (naming_ && !silent) {
-	    std::unordered_set<std::string> seen;
-	    // Scan all vars in goal, and set initial bindings
-	    std::for_each( begin(goal),
-		   end(goal),
-		   [&](term t) {
-		     if (t.tag().is_ref()) {
-		           ref_cell r = reinterpret_cast<ref_cell &>(t).unwatch();
-			   const std::string name = to_string(r);
-			   if (!seen.count(name)) {
-			       seen.insert(name);
-			       if (name_to_term_.count(name)) {
-				   unify(t, name_to_term_[name]);
-			       } else {
-				   name_to_term_[name] = t;
-			       }
-			   }
-		       }
-		   } );
-	}
 
 	if (!execute_goal(goal)) {
 	    reset();
 	    return false;
 	}
-	if (!silent) {
+
+	if (silent) {
+	    stop();
+	} else {
 	    serialized.clear();
 	    ser.write(serialized, goal);
 	}
@@ -278,6 +279,17 @@ void global_interpreter::execute_cut() {
     set_b0(nullptr); // Set cut point to top level
     interpreter_base::cut();
     interpreter_base::clear_trail();
+}
+
+int64_t global_interpreter::available_fees() {
+    int64_t fees = 0;
+    for (auto r : singleton_vars_in_goal()) {
+	auto dr = deref(r);
+	if (coin::is_native_coin(*this, dr) && !coin::is_coin_spent(*this, dr)) {
+	    fees += coin::coin_value(*this, dr);
+	}
+    }
+    return fees;
 }
 
 void global_interpreter::discard_changes() {
@@ -320,7 +332,12 @@ void global_interpreter::discard_changes() {
     next_predicate_id_ = start_next_predicate_id_;
     new_predicates_ = 0;
     trim_heap_safe(old_heap_size_);
+    current_block_ = nullptr;
+    current_block_index_ = static_cast<size_t>(-2);
+    set_head_block(nullptr);
+    heap_get(old_heap_size_-1);
     current_block_ = get_head_block();
+    modified_closures_.clear();
     get_stacks().reset(); // Clear trail and stacks
 }
     
@@ -398,12 +415,13 @@ term global_interpreter::get_frozen_closure(size_t addr)
 
 void global_interpreter::clear_frozen_closure(size_t addr)
 {
-    bool is_frozen = get_frozen_closure(addr) != EMPTY_LIST;
+    term cl = get_frozen_closure(addr);
+    bool is_frozen = cl != EMPTY_LIST;
     if (!is_frozen) {
 	return;
     }
     internal_clear_frozen_closure(addr);
-
+    
     // Check if frozen closure is in modified list, then remove it
     auto it = modified_closures_.find(addr);
     if (it != modified_closures_.end()) {
@@ -493,7 +511,7 @@ void global_interpreter::get_frozen_closures(size_t from_addr,
 	}
 
 	assert(it1->custom_data_size() == sizeof(uint64_t));
-	cell cl(db::read_uint64(it1->custom_data()));
+	cell cl(common::read_uint64(it1->custom_data()));
 	closures.push_back(std::make_pair(leaf.key(), cl));
 	k--;
 	if (reversed) --it1; else ++it1;

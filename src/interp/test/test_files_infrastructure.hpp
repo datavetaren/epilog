@@ -225,6 +225,7 @@ static inline bool test_interpreter_file(const std::string &filepath,
     const std::string dir = boost::filesystem::path(filepath).parent_path().string();
     
     interp.set_current_directory(dir);
+    interp.reset();
 
     // interp.set_debug(true);
 

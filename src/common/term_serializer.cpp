@@ -1,6 +1,8 @@
 #include <iomanip>
 #include <queue>
 #include "term_serializer.hpp"
+#include "blake2.hpp"
+#include "bits.hpp"
 
 namespace epilog { namespace common {
 
@@ -10,6 +12,46 @@ term_serializer::term_serializer(term_env &env) : env_(env)
 
 term_serializer::~term_serializer()
 {
+}
+
+void term_serializer::hash(const term_serializer::buffer_t &buf, uint8_t outhash[32]) {
+    blake2b_state s;
+    blake2b_init(&s, 32);
+    blake2b_update(&s, &buf[0], buf.size());
+    blake2b_final(&s, outhash, 32);
+}
+
+int_cell term_serializer::hash_small(const term_serializer::buffer_t &buf)
+{
+    uint8_t h[32];
+    hash(buf, h);
+
+    auto ui64 = read_uint64(&h[0]);
+    return int_cell(static_cast<int64_t>(ui64 >> cell::TAG_SIZE_BITS));
+}
+	
+void term_serializer::hash(term_env &env, term t, uint8_t outhash[32])
+{
+    term_serializer::buffer_t buf;
+    if (t.tag() == tag_t::BIG) {
+	auto &big = reinterpret_cast<big_cell &>(t);
+	auto n = env.num_bytes(big);
+	buf.resize(n);
+	env.get_big(big, &buf[0], n);
+    } else {
+	term_serializer ser(env);
+	ser.write(buf, t);
+    }
+    hash(buf, outhash);
+}
+
+int_cell term_serializer::hash_small(term_env &env, term t)
+{
+    uint8_t h[32];
+    hash(env, t, h);
+
+    auto ui64 = read_uint64(&h[0]);
+    return int_cell(static_cast<int64_t>(ui64 >> cell::TAG_SIZE_BITS));    
 }
 
 void term_serializer::write(buffer_t &bytes, const term t)

@@ -8,6 +8,7 @@
 #include "../coin/builtins.hpp"
 #include "../global/global_interpreter.hpp"
 #include "../common/sha256.hpp"
+#include "../pow/pow_mining.hpp"
 #include "node_locker.hpp"
 #include "sync.hpp"
 
@@ -80,6 +81,10 @@ bool me_builtins::operator_at_impl(interpreter_base &interp0, size_t arity, term
 	std::copy(args, args+arity, new_args);
 	new_args[1] = interp.arg(args[1], 0);
 	return interpreter::operator_at_impl(interp0, arity, new_args, name, mode);
+    }
+
+    if (where_term == con_cell("mempool",0)) {
+	return interpreter::operator_at_impl(interp0, arity, args, name, mode);
     }
 
     // std::cout << "operator_at_2: query=" << interp.to_string(query) << " where=" << interp.to_string(where_term) << std::endl;
@@ -845,7 +850,7 @@ std::set<global::meta_id> me_builtins::get_meta_ids(interpreter_base &interp0, c
     if (id.tag() == tag_t::INT) {
 	int64_t val = reinterpret_cast<int_cell &>(id).value();
 	uint64_t uval = static_cast<uint64_t>(val);
-	db::write_uint64(prefix, uval);
+	common::write_uint64(prefix, uval);
 	std::reverse(prefix, &prefix[8]);
 	// Skip leading 0s (unless last byte)
 	size_t from = 0;
@@ -904,7 +909,7 @@ bool me_builtins::chain_3(interpreter_base &interp0, size_t arity, term args[]) 
 	if (args[1].tag() == tag_t::INT) {
 	    int64_t val = reinterpret_cast<int_cell &>(args[1]).value();
 	    uint64_t uval = static_cast<uint64_t>(val);
-	    db::write_uint64(prefix, uval);
+	    common::write_uint64(prefix, uval);
 	    std::reverse(prefix, &prefix[8]);
 	    // Skip leading 0s (unless last byte)
 	    size_t from = 0;
@@ -942,7 +947,7 @@ bool me_builtins::chain_3(interpreter_base &interp0, size_t arity, term args[]) 
 
 bool me_builtins::advance_0(interpreter_base &interp0, size_t arity, term args[]) {
     auto &interp = to_local(interp0);
-    auto locked = interp.lock_node();    
+    auto locked = interp.lock_node();
     auto &g = interp.self().global();
     g.advance();
     return true;
@@ -1090,112 +1095,7 @@ bool me_builtins::validate_meta_1(interpreter_base &interp0, size_t arity, term 
 	return false;
     }
 
-    node_hash block_hash, heap_hash, closure_hash, symbols_hash, program_hash;
-    uint64_t block_num = 0, heap_num = 0, closure_num = 0, symbols_num = 0, program_num = 0;
-
-    term lst = interp.arg(args[0], 0);
-    while (interp.is_dotted_pair(lst)) {
-	auto prop = interp.arg(lst, 0);
-	if (prop.tag() == tag_t::STR && interp.functor(prop) == con_cell("db",3)) {
-	    node_hash *hash_p = nullptr;
-	    uint64_t *num_p = nullptr;
-	    auto dbname = interp.arg(prop, 0);
-	    if (dbname == con_cell("block",0)) {
-		hash_p = &block_hash;
-		num_p = &block_num;
-	    } else if (dbname == con_cell("heap",0)) {
-		hash_p = &heap_hash;
-		num_p = &heap_num;
-	    }  else if (dbname == con_cell("closure",0)) {
-		hash_p = &closure_hash;
-		num_p = &closure_num;		
-	    } else if (dbname == con_cell("symbols",0)) {
-		hash_p = &symbols_hash;
-		num_p = &symbols_num;
-	    } else if (dbname == con_cell("program",0)) {
-		hash_p = &program_hash;
-		num_p = &program_num;		
-	    }
-
-	    if (hash_p && num_p) {
-		auto num_term = interp.arg(prop, 1);
-		if (num_term.tag() != tag_t::INT) {
-		    return false;
-		}
-		*num_p = static_cast<uint64_t>(reinterpret_cast<int_cell &>(num_term).value());
-		auto hash_term = interp.arg(prop, 2);
-		if (hash_term.tag() != tag_t::BIG) {
-		    return false;
-		}
-		auto big = reinterpret_cast<big_cell &>(hash_term);
-		size_t hash_size = interp.num_bytes(big);
-		if (hash_size > 128) {
-		    return false;
-		}
-		uint8_t hash_data[128];
-		interp.get_big(hash_term, hash_data, hash_size);
-		hash_p->set_hash(hash_data, hash_size);
-	    }
-	}
-	lst = interp.arg(lst, 1);
-    }
-
-
-    blake2b_state s;
-    blake2b_init(&s, BLAKE2B_OUTBYTES);
-
-    // Add previous id
-    blake2b_update(&s, entry.get_previous_id().hash(), global::meta_id::HASH_SIZE);
-
-    auto const &block_hash_const = block_hash;
-    auto const &heap_hash_const = heap_hash;
-    auto const &closure_hash_const = closure_hash;
-    auto const &symbols_hash_const = symbols_hash;
-    auto const &program_hash_const = program_hash;
-    blake2b_update(&s, block_hash_const.hash(), block_hash_const.hash_size());
-    blake2b_update(&s, heap_hash_const.hash(), heap_hash_const.hash_size());
-    blake2b_update(&s, closure_hash_const.hash(), closure_hash_const.hash_size());
-    blake2b_update(&s, symbols_hash_const.hash(), symbols_hash_const.hash_size());
-    blake2b_update(&s, program_hash_const.hash(), program_hash_const.hash_size());
-
-    uint8_t data[1024];
-
-    // Add number of entries in heap, closures, symbols and program.
-    db::write_uint64(data, heap_num);
-    blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, closure_num);
-    blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, symbols_num);
-    blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, program_num);
-    blake2b_update(&s, data, sizeof(uint64_t));
-    
-    // Add version
-    db::write_uint64(data, entry.get_version());
-    blake2b_update(&s, data, sizeof(uint64_t));
-
-    // Add height
-    db::write_uint32(data, entry.get_height());
-    blake2b_update(&s, data, sizeof(uint32_t));
-
-    // Add nonce
-    db::write_uint64(data, entry.get_nonce());
-    blake2b_update(&s, data, sizeof(uint64_t));
-
-    // Add timestamp
-    auto &ts = entry.get_timestamp();
-    ts.write(data);
-    blake2b_update(&s, data, ts.serialization_size());
-
-    // Add pow difficulty
-    entry.get_pow_difficulty().write(data);
-    blake2b_update(&s, data, entry.get_pow_difficulty().serialization_size());
-
-    memset(data, 0, sizeof(data));
-    blake2b_final(&s, data, BLAKE2B_OUTBYTES);
-
-    // This hash should equal the id of the entry
-    return memcmp(data, entry.get_id().hash(), entry.get_id().hash_size()) == 0;
+    return g.db_validate_meta(interp, args[0], entry);
 }
 
 bool me_builtins::metas_3(interpreter_base &interp0, size_t arity, term args[]) {
@@ -1471,6 +1371,14 @@ bool me_builtins::follow_3(interpreter_base &interp0, size_t arity, term args[])
     return interp.unify(args[2], path);
 }
 
+bool me_builtins::setup_commit_0(interpreter_base &interp0, size_t arity, term args[]) {
+    auto &interp = to_local(interp0);
+    auto locked = interp.lock_node();    
+    global::global &g = interp.self().global();
+    g.setup_commit();
+    return true;
+}
+
 bool me_builtins::setup_commit_1(interpreter_base &interp0, size_t arity, term args[]) {
     auto &interp = to_local(interp0);
     auto locked = interp.lock_node();    
@@ -1485,7 +1393,7 @@ bool me_builtins::setup_commit_1(interpreter_base &interp0, size_t arity, term a
     return true;
 }
 
-bool me_builtins::commit(local_interpreter &interp, term_serializer::buffer_t &buf, term t, bool naming)
+bool me_builtins::commit(local_interpreter &interp, term_serializer::buffer_t &buf, term t)
 {
     auto locked = interp.lock_node();
     global::global &g = interp.self().global();
@@ -1495,8 +1403,6 @@ bool me_builtins::commit(local_interpreter &interp, term_serializer::buffer_t &b
     }
     
     g.check_interp();
-    
-    g.set_naming(naming);
 
     if (t.tag() == tag_t::BIG) {
 	// Assume this is an encoded leaf
@@ -1524,10 +1430,9 @@ bool me_builtins::commit(local_interpreter &interp, term_serializer::buffer_t &b
     return true;
 }
 
-bool me_builtins::commit_2(interpreter_base &interp0, size_t arity, term args[])
+bool me_builtins::commit_1(interpreter_base &interp0, size_t arity, term args[])
 {
     // commit(X)
-    // commit(X, naming)
     // Attempt to put X on the global interpreter.
     // Special if X is a clause: p(V) :- Body, then V is first bound
     // to the hash (by serialization) of Body, and then Body put on the
@@ -1542,14 +1447,28 @@ bool me_builtins::commit_2(interpreter_base &interp0, size_t arity, term args[])
 
     interp.root_check("commit", arity);
 
-    bool naming = arity >= 2 && args[1] == con_cell("naming",0);
-    
     buffer_t buf;
-    if (!commit(interp, buf, args[0], naming)) {
+    if (!commit(interp, buf, args[0])) {
         return false;
     }
     
     return true;
+}
+
+bool me_builtins::wrapfee_4(interpreter_base &interp0, size_t arity, term args[]) {
+    auto &interp = to_local(interp0);
+    auto locked = interp.lock_node();    
+    interp.root_check("wrapfee", arity);
+
+    global::global &g = interp.self().global();
+
+    term goal = args[0];
+    
+    if (!g.wrap_fees(interp, goal, args[1], args[2])) {
+	return false;
+    }
+
+    return interp.unify(goal, args[3]);
 }
 
 bool me_builtins::global_impl(interpreter_base &interp0, size_t arity, term args[], bool silent)
@@ -1573,6 +1492,8 @@ bool me_builtins::global_impl(interpreter_base &interp0, size_t arity, term args
 	g.reset();
 	return false;
     }
+
+    g.stop();
 
     // assert(g.is_clean());
 
@@ -1765,19 +1686,26 @@ bool me_builtins::sync_point_2(interpreter_base &interp0, size_t arity, term arg
     return interp.unify(result, term_sync_id);
 }
 
-bool me_builtins::ignore_pow_1(interpreter_base &interp0, size_t arity, term args[])
+bool me_builtins::pow_mode_1(interpreter_base &interp0, size_t arity, term args[])
 {
     auto &interp = to_local(interp0);
     auto locked = interp.lock_node();    
     if (args[0].tag().is_ref()) {
-	auto c = interp.self().check_pow() ? con_cell("false",0) : con_cell("true",0);
-	return interp.unify(args[0], c);
-    } else if (args[0] == con_cell("false",0)) {
-	interp.self().set_check_pow(true);
-    } else if (args[0] == con_cell("true",0)) {
-	interp.self().set_check_pow(false);
+	term t = con_cell("false",0);
+	switch (interp.self().pow_mode()) {
+	case global::POW_NONE: t = con_cell("none",0); break;
+	case global::POW_SIMPLE: t = con_cell("simple",0); break;
+	case global::POW_NORMAL: t = con_cell("normal",0); break;
+	}
+	return interp.unify(args[0], t);
+    } else if (args[0] == con_cell("none",0)) {
+	interp.self().set_pow_mode(global::POW_NONE);
+    } else if (args[0] == con_cell("simple",0)) {
+	interp.self().set_pow_mode(global::POW_SIMPLE);
+    } else if (args[0] == con_cell("normal",0)) {
+	interp.self().set_pow_mode(global::POW_NORMAL);
     } else {
-	throw interpreter_exception_wrong_arg_type("ignore_pow/1: Argument must be a variable, or 'true' or 'false.'");
+	throw interpreter_exception_wrong_arg_type("pow_mode/1: Argument must be a variable, or 'none', 'simple' or 'normal'.");
     }
     return true;
 }
@@ -2549,6 +2477,145 @@ bool me_builtins::ptask_0(interpreter_base &interp0, size_t arity, term args[]) 
     return true;
 }
 
+bool me_builtins::new_tx_1(interpreter_base &interp0, size_t arity, term args[]) {
+    // First validate the transaction against global state
+
+    auto &interp = to_local(interp0);
+    auto locked = interp.lock_node();
+
+    term t = args[0];
+
+    term_serializer ser(interp);
+    buffer_t buf;
+    ser.write(buf, t);
+
+    auto &g = interp.self().global();
+    
+    if (!g.execute_goal(buf, true)) {
+	// We'd like to avoid using g.discard() as if someone is
+	// doing double spends he/she can easily fill up the mempool
+	// otherwise. But not using discard() means that the transaction
+	// can spoof by doing assert() and cluttering the program database
+	// before failing (and Prolog does not reverse those in reset())
+	// We could improve reset() to deal with that though. But if
+	// we get transactions that constantly fail, then we should force
+	// a disconnect and also throttle the IP address.
+	interp.session().punish();
+	g.reset();
+    }
+
+    // We successfully managed to add this transaction to the global
+    // state, so add it to the mempool.
+
+    interp.self().mempool().add_tx(buf);
+
+    return true;
+}
+
+bool me_builtins::pow_0(interpreter_base &interp0, size_t arity, term args[]) {
+    auto &interp = to_local(interp0);
+    global::meta_entry tip;
+    {
+	auto locked = interp.lock_node();
+	tip = interp.self().global().tip();
+    }
+    auto id = tip.get_id();
+    pow::siphash_keys keys(id.hash(), id.hash_size());
+    pow::pow_proof proof;
+
+    utime t0 = utime::now();
+    
+    pow::search_proof(keys, global::meta_entry::DEFAULT_SUPER_DIFFICULTY,
+		      tip.get_pow_difficulty(), proof, interp.self().global().pow_mode());
+
+    utime t1 = utime::now();
+
+    auto dt = (t1 - t0).in_ss();
+
+    std::cout << "Elapsed time: " << dt << "s." << std::endl;
+
+    tip.set_pow_proof(proof);
+
+    {
+	auto locked = interp.lock_node();
+	interp.self().global().get_blockchain().update_meta_entry(tip);
+    }
+
+    return true;
+}
+
+bool me_builtins::verify_pow_1(interpreter_base &interp0, size_t arity, term args[]) {
+    static const std::string name = "verify_pow/1";
+    
+    auto &interp = to_local(interp0);
+    auto locked = interp.lock_node();
+    auto id = get_meta_id(interp, name, args[0]);
+
+    auto const *found_entry = interp.self().global().get_blockchain().get_meta_entry(id);
+    if (found_entry == nullptr) {
+	return false;
+    }
+    return found_entry->validate_pow(interp.self().global().pow_mode());
+}
+
+bool me_builtins::new_blk_2(interpreter_base &interp0, size_t arity, term args[]) {
+    static const std::string name = "new_blk/2";
+
+    auto &interp = to_local(interp0);
+    auto locked = interp.lock_node();
+    global::meta_entry entry;
+    auto &g = interp.self().global();
+    g.db_parse_meta(interp, args[0], entry);
+
+    if (!g.db_validate_meta(interp, args[0], entry)) {
+	throw interpreter_exception_wrong_arg_type(name + ": Meta information is not valid.");
+    }
+
+    if (!entry.validate_pow(g.pow_mode())) {
+	throw interpreter_exception_wrong_arg_type(name + ": PoW was not valid.");
+    }
+    auto const *found_entry = g.get_blockchain().get_meta_entry(entry.get_id());
+    if (found_entry) {
+	// Already added
+	return true;
+    }
+    auto &prev_id = entry.get_previous_id();
+    auto const *found_prev_entry = g.get_blockchain().get_meta_entry(prev_id);
+    if (found_prev_entry == nullptr) {
+	throw interpreter_exception_wrong_arg_type(name + ": Couldn't find prior entry.");
+    }
+
+    // Make sure we're at the right tip
+    auto old_tip = g.tip_id();
+    if (old_tip != prev_id) {
+	g.set_tip(prev_id);
+    }
+
+    g.setup_commit(entry);
+    
+    auto block = args[1];
+
+    using buffer_t = epilog::common::term_serializer::buffer_t;
+    
+    if (block.tag() == tag_t::BIG) {
+	auto &big = reinterpret_cast<big_cell &>(block);
+	size_t n = interp.num_bytes(big);
+	buffer_t buf(n);
+	interp.get_big(big, &buf[0], n);
+	if (!g.execute_commit(buf)) {
+	    return false;
+	}
+    } else {
+	buffer_t buf;
+	term_serializer ser(interp);
+	ser.write(buf, block);
+	if (!g.execute_commit(buf)) {
+	    return false;
+	}
+    }
+    
+    return false;
+}
 
 local_interpreter::local_interpreter(in_session_state &session)
     : interp::interpreter("node"), session_(session), initialized_(false), ignore_text_(false)
@@ -2597,6 +2664,9 @@ void local_interpreter::ensure_initialized()
         coin::builtins::load(*this);
 
 	setup_local_builtins();
+
+	// Add mempool as interpreter (enable @ executions)
+	add_at_local("mempool", &self().mempool());
 
 	// Make it easier by importing multiple modules
 	use_module(ME);
@@ -2707,10 +2777,11 @@ void local_interpreter::setup_local_builtins()
     load_builtin(ME, con_cell("follow", 3), &me_builtins::follow_3);
     
     // Commit to the global interpreter
+    load_builtin(ME, functor("setup_commit", 0), &me_builtins::setup_commit_0);
     load_builtin(ME, functor("setup_commit", 1), &me_builtins::setup_commit_1);
-    load_builtin(ME, con_cell("commit", 1), &me_builtins::commit_2);
-    load_builtin(ME, con_cell("commit", 2), &me_builtins::commit_2);
-
+    load_builtin(ME, con_cell("commit", 1), &me_builtins::commit_1);
+    load_builtin(ME, con_cell("wrapfee", 4), &me_builtins::wrapfee_4);
+    
     // Execute on global interpreter
     load_builtin(ME, con_cell("global", 1), &me_builtins::global_1);
 
@@ -2725,7 +2796,7 @@ void local_interpreter::setup_local_builtins()
     load_builtin(ME, functor("sync_point", 2), &me_builtins::sync_point_2);
     load_builtin(ME, functor("sync_progress", 0), &me_builtins::sync_progress_1);    
     load_builtin(ME, functor("sync_progress", 1), &me_builtins::sync_progress_1);
-    load_builtin(ME, functor("ignore_pow", 1), &me_builtins::ignore_pow_1);
+    load_builtin(ME, functor("pow_mode", 1), &me_builtins::pow_mode_1);
     load_builtin(ME, con_cell("db_get", 5), &me_builtins::db_get_5);
     load_builtin(ME, con_cell("db_num", 3), &me_builtins::db_num_3);    
     load_builtin(ME, con_cell("db_num", 4), &me_builtins::db_num_4);
@@ -2737,6 +2808,10 @@ void local_interpreter::setup_local_builtins()
     load_builtin(ME, con_cell("db_put", 4), &me_builtins::db_put_4);
     load_builtin(ME, con_cell("db_put", 3), &me_builtins::db_put_3);
     load_builtin(ME, con_cell("ptask", 0), &me_builtins::ptask_0);
+    load_builtin(ME, con_cell("new_tx", 1), &me_builtins::new_tx_1);
+    load_builtin(ME, con_cell("pow",0), &me_builtins::pow_0);
+    load_builtin(ME, functor("verify_pow", 1), &me_builtins::verify_pow_1);
+    load_builtin(ME, con_cell("new_blk",2), &me_builtins::new_blk_2);
 
     set_current_module(old_mod);
 

@@ -13,7 +13,8 @@ in_session_state::in_session_state(self_node *self, in_connection *conn, bool is
     interp_(*this),
     heartbeat_count_(0),
     available_funds_(0),
-    is_root_(is_root)
+    is_root_(is_root),
+    punished_(0)
 {
     id_ = "s" + random::next();
 }
@@ -72,6 +73,11 @@ bool in_session_state::next()
     return r;
 }
 
+void in_session_state::stop()
+{
+    interp_.stop();
+}
+	
 bool in_session_state::at_end()
 {
     return !interp_.has_more() && interp_.is_instance();

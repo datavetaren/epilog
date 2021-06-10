@@ -35,6 +35,7 @@ public:
 
     bool execute(const common::term query);
     bool next();
+    void stop();
     bool at_end();
     void delete_instance();
     bool reset();
@@ -52,6 +53,10 @@ public:
     void add_funds(uint64_t dfunds);
     void heartbeat();
 
+    inline void punish() {
+	punished_++;
+    }
+
 private:
     void setup_modules();
 
@@ -64,6 +69,7 @@ private:
     size_t heartbeat_count_;
     uint64_t available_funds_;
     bool is_root_;
+    size_t punished_;
 };
 
 }}

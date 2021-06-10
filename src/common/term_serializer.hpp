@@ -222,6 +222,11 @@ public:
     void print_buffer(std::ostream &out, const buffer_t &bytes, size_t n);    
     void print_buffer(const buffer_t &bytes, size_t n);
 
+    static void hash(const buffer_t &buf, uint8_t hash[32]);
+    static void hash(term_env &env, term t, uint8_t hash[32]);
+    static int_cell hash_small(term_env &env, term t);
+    static int_cell hash_small(const buffer_t &buf);
+    
     static inline cell read_cell(const buffer_t &bytes, size_t from_offset, const std::string &context)
         { cell::value_t raw_value = 0;
 	  if (from_offset + 8 > bytes.size()) {

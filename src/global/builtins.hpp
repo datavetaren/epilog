@@ -24,8 +24,6 @@ public:
 
     static bool current_height_1(interpreter_base &interp, size_t arity, term args[] );
 
-    static bool increment_height_0(interpreter_base &interp, size_t arity, term args[] );
-
     // ref(?X, ?HeapAddr)
     // We'll add a new predicate "test(on)", "test(off)" to toggle
     // global interpreter in testing mode. ref_2 will not be available

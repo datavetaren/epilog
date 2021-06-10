@@ -23,10 +23,19 @@ term meta_id::to_term(term_env &dst) const {
     return dst.new_big(hash_, hash_size());
 }
 
-bool meta_entry::validate_pow() const {
+bool meta_entry::validate_pow(pow_mode_t mode) const {
+    if (mode == POW_NONE) {
+	return true;
+    }
     siphash_keys key(reinterpret_cast<const char *>(get_id().hash()), get_id().hash_size());
-    return verify_pow(key, DEFAULT_SUPER_DIFFICULTY,
-		      get_pow_difficulty(), get_pow_proof());
+    if (mode == POW_SIMPLE) {
+	return verify_pow_simple(key, DEFAULT_SUPER_DIFFICULTY,
+			  get_pow_difficulty(), get_pow_proof());
+    } else {
+	return verify_pow(key, DEFAULT_SUPER_DIFFICULTY,
+			  get_pow_difficulty(), get_pow_proof());
+	
+    }
 }
 
 }}

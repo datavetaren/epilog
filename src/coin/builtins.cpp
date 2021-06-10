@@ -1,4 +1,5 @@
 #include "builtins.hpp"
+#include "coin.hpp"
 #include "../interp/interpreter_base.hpp"
 
 namespace epilog { namespace coin {
@@ -6,6 +7,16 @@ namespace epilog { namespace coin {
 using namespace epilog::common;
 using namespace epilog::interp;
 
+int64_t builtins::reward(size_t height) {
+    int64_t reward = 0;
+    if (height == 0) {
+        reward = 42445243724242;
+    } else {
+        reward = 21000000000 >> (height / 100000);
+    }
+    return reward;
+}
+	
 bool builtins::reward_2(interpreter_base &interp, size_t arity, term args[]) {
     if (args[0].tag() != tag_t::INT) {
         throw interpreter_exception_argument_not_number(
@@ -13,49 +24,10 @@ bool builtins::reward_2(interpreter_base &interp, size_t arity, term args[]) {
     }
 
     int64_t height = reinterpret_cast<int_cell &>(args[0]).value();
-    
-    int64_t reward = 0;
-    if (height == 0) {
-        reward = 42445243724242;
-    } else {
-        reward = 21000000000 >> (height / 100000);
-    }
+    auto rew = reward(height);
     auto disabled = interp.disable_coin_security();
-    term coin = interp.new_term( con_cell("$coin",2), {int_cell(reward)} );
+    term coin = interp.new_term( con_cell("$coin",2), {int_cell(rew)} );
     return interp.unify(coin, args[1]);
-}
-
-// Any term that has arity >= 2 and whose functor's name starts with '$'
-// is a join.
-// The first argument must be an integer telling its value,
-// The second argument is either unbound (unspent) or not (spent.)
-static bool is_coin(interpreter_base &interp, term t) {
-    if (t.tag() != tag_t::STR) {
-        return false;
-    }
-    auto f = interp.functor(t);
-    if (f.arity() < 2) {
-        return false;
-    }
-    return interp.is_dollar_atom_name(f);
-}
-
-static bool is_coin_spent(interpreter_base &interp, term t) {
-    assert(is_coin(interp, t));
-    return !interp.arg(t, 1).tag().is_ref();
-}
-
-static void spend_coin(interpreter_base &interp, term t) {
-    assert(is_coin(interp, t));
-    assert(!is_coin_spent(interp, t));
-    interp.unify(interp.arg(t, 1), term_env::EMPTY_LIST);
-}
-
-static int64_t coin_value(interpreter_base &interp, term t) {
-    assert(is_coin(interp, t));
-    term v = interp.arg(t, 0);
-    assert(v.tag() == tag_t::INT);
-    return reinterpret_cast<int_cell &>(v).value();
 }
 
 static bool are_all_integers(interpreter_base &interp, term t) {

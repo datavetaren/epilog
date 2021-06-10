@@ -11,7 +11,7 @@
 namespace epilog { namespace pow {
 #endif
 
-bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, pow_proof &out_proof);
+bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, pow_proof &out_proof, bool simple);
 
 #ifndef DIPPER_DONT_USE_NAMESPACE
 }}

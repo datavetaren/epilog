@@ -36,16 +36,6 @@ static bool is_full(int argc, char *argv[])
     return false;
 }
 
-static const char * find_name(int argc, char *argv[])
-{
-    for (int i = 1; i < argc; i++) {
-        if (strncmp(argv[i], "-",1) != 0) {
-	    return argv[i];
-        }
-    }
-    return nullptr;
-}
-
 int main( int argc, char *argv[] )
 {
     header( "test_main_pl_files" );
@@ -57,7 +47,7 @@ int main( int argc, char *argv[] )
     
     full_mode = is_full(argc, argv);
 
-    const char *name = find_name(argc, argv);
+    const char *name = NAME;
 
     const std::string dir = "/src/main/test/pl_files";
 

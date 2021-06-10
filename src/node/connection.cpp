@@ -597,6 +597,9 @@ void in_connection::process_execution(const term cmd, bool in_query, bool silent
 		standard_out = e.string_to_list(session_->get_text_out());
 		session_->reset_text_out();
 	    }
+	    if (silent) {
+		session_->stop();
+	    }
 	    auto last_cost = static_cast<int64_t>(session_->last_cost());
 	    if (!r) {
 		reply_ok(e.new_term(e.functor("result",5),

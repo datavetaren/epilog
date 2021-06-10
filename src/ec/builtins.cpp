@@ -12,6 +12,7 @@
 #include "../common/sha256.hpp"
 #include "../common/sha512.hpp"
 #include "../common/aes256.hpp"
+#include "../db/util.hpp"
 
 #include "src/util.h"
 #include "src/hash_impl.h"
@@ -757,34 +758,22 @@ bool builtins::hash_2(interpreter_base &interp, size_t arity, term args[] )
 bool builtins::hash_3(interpreter_base &interp, size_t arity, term args[])
 {
     static con_cell BLAKE2B = con_cell("blake2b",0);
+    static con_cell TX = con_cell("tx",0);
     
-    if (args[1].tag() != tag_t::CON || args[1] != BLAKE2B) {
+    if (args[1].tag() != tag_t::CON || args[1] != BLAKE2B || args[1] != TX) {
          throw interpreter_exception_wrong_arg_type(
 	   "ec:hash/3: Second argument must be a hash type; was " +
 	   interp.to_string(args[1]));
     }
 
-    term_serializer::buffer_t buf;
-    if (args[0].tag() == tag_t::BIG) {
-	auto &big = reinterpret_cast<big_cell &>(args[0]);
-	auto n = interp.num_bytes(big);
-	buf.resize(n);
-	interp.get_big(big, &buf[0], n);
+    if (args[1] == TX) {
+	return interp.unify(args[2], term_serializer::hash_small(interp, args[1]));
     } else {
-	term_serializer ser(interp);
-	ser.write(buf, args[0]);
+	uint8_t hash[32];
+	term_serializer::hash(interp, args[1], hash);
+	auto result = interp.new_big(hash, sizeof(hash));
+	return interp.unify(args[2], result);
     }
-
-    uint8_t hash[32];
-    
-    blake2b_state s;
-    blake2b_init(&s, sizeof(hash));
-    blake2b_update(&s, &buf[0], buf.size());
-    blake2b_final(&s, hash, sizeof(hash));
-
-    auto result = interp.new_big(hash, sizeof(hash));
-
-    return interp.unify(args[2], result);
 }
 
 bool builtins::compute_pedersen_commit(interpreter_base &interp,

@@ -58,13 +58,21 @@ bool verify_dipper(const siphash_keys &key, size_t super_difficulty, uint64_t no
     return true;
 }
 
-bool verify_pow(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof) {
+bool verify_pow_simple(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof) {
+    return verify_pow(key, super_difficulty, difficulty, proof, true);
+}
+	
+bool verify_pow(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof, bool simple) {
     pow_verifier verifier(key, super_difficulty);
     std::vector<projected_star> stars;
 
     uint32_t row[pow_proof::ROW_SIZE];
     uint32_t nonce_sum = 0;
     for (size_t row_no = 0; row_no < proof.num_rows(); row_no++) {
+	if (simple && row_no == 1) {
+	    break;
+	}
+	
         // std::cout << "Verify row_no " << row_no << std::endl;
         uint64_t nonce_offset = static_cast<uint64_t>(nonce_sum) << 32;
 

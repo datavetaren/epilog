@@ -32,6 +32,10 @@ public:
 	return difficulty_ * val;
     }
 
+    flt1648 value() const {
+	return difficulty_;
+    }
+    
     size_t serialization_size() const {
 	return difficulty_.serialization_size();
     }
@@ -69,9 +73,11 @@ private:
 // The second is a star identifier that is visible for that nonce offset and
 // the third is the nonce found for the detected dipper.
 //
+// We changed number of rows from 16 to 4 to reduce size of header.
+//
 class pow_proof {
 public:
-    static const size_t NUM_ROWS = 16;
+    static const size_t NUM_ROWS = 4;
     static const size_t ROW_SIZE = 9;
     static const size_t TOTAL_SIZE = ROW_SIZE*NUM_ROWS;
     static const size_t TOTAL_SIZE_BYTES = TOTAL_SIZE*sizeof(uint32_t);
@@ -80,7 +86,11 @@ public:
 	memset(&data_[0], 0, TOTAL_SIZE_BYTES);
     }
 
-    inline pow_proof(uint32_t proof[TOTAL_SIZE]) {
+    inline pow_proof(const uint8_t proof[TOTAL_SIZE]) {
+	memcpy(&data_[0], &proof[0], TOTAL_SIZE_BYTES);
+    }
+    
+    inline pow_proof(const uint32_t proof[TOTAL_SIZE]) {
 	memcpy(&data_[0], &proof[0], TOTAL_SIZE_BYTES);
     }
 
@@ -217,7 +227,9 @@ private:
     void *camera_;
 };
 
-bool verify_pow(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof);
+bool verify_pow(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof, bool simple = false);
+
+bool verify_pow_simple(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, const pow_proof &proof);
 
 bool verify_dipper(const siphash_keys &key, size_t super_difficulty, uint64_t nonce_offset, uint32_t nonce, const uint32_t star_ids[7]);
 

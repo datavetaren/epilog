@@ -28,7 +28,7 @@ static bool scan(void *obs, size_t super_difficulty, uint64_t nonce_offset,
     }
 }
 
-bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, pow_proof &out_proof) {
+bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_difficulty &difficulty, pow_proof &out_proof, bool simple) {
     void *obs = nullptr;
 
     class cleanup {
@@ -55,6 +55,9 @@ bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_di
     
     uint32_t nonce_sum = 0;
     for (size_t proof_no = 0; proof_no < pow_proof::NUM_ROWS; proof_no++) {
+	if (simple && proof_no == 1) {
+	    break;
+	}
 	uint32_t nonce = 0;
 	uint64_t nonce_offset = static_cast<uint64_t>(nonce_sum) << 32;
 	projected_star first_visible;
@@ -89,7 +92,7 @@ bool search_proof(const siphash_keys &key, size_t super_difficulty, const pow_di
         return false;
     }
 
-    if (!verify_pow(key, super_difficulty, difficulty, out_proof)) {
+    if (!verify_pow(key, super_difficulty, difficulty, out_proof, simple)) {
         std::cout << "Failed verification of proof!" << std::endl;
 	return false;
     }

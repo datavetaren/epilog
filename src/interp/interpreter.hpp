@@ -203,7 +203,7 @@ public:
 			       + interp.to_string(mc->query()));
 		}
 	    }
-	    return false;
+	    return interp.unify(qr, r.result());
 	} else {
 	    interp.allocate_choice_point(code_point::fail());
 	    interp.set_p(code_point(interp.EMPTY_LIST));
@@ -281,6 +281,7 @@ public:
     interpreter(const std::string &name);
     ~interpreter();
 
+    void reset();
     void total_reset();
 
     void setup_standard_lib();
@@ -315,6 +316,7 @@ public:
     bool next();
     bool cont();
     void fail();
+    void stop();
 
     void load_file(const std::string &filename);
 
@@ -451,6 +453,7 @@ private:
     std::vector<binding> *query_vars_;
     size_t num_instances_;
     std::vector<size_t> last_hb_;
+    std::vector<bool> new_instance_created_;
 
     friend struct new_instance_context;
     friend class test_wam_interpreter;

@@ -10,6 +10,7 @@ using namespace epilog::common;
 using namespace epilog::node;
 using namespace epilog::wallet;
 using namespace epilog::main;
+using namespace epilog::global;
 
 static std::string program_name;
 static std::string home_dir;
@@ -18,7 +19,7 @@ static std::string name;
 static std::string dir;
 static bool is_wallet = false;
 static bool is_meta = false;
-static bool check_pow = true;
+static pow_mode_t pow_mode = POW_NORMAL;
 
 static void help()
 {
@@ -65,10 +66,7 @@ static void start()
     if (!name.empty()) {
 	node.set_name(name);
     }
-
-    if (!check_pow) {
-	node.set_check_pow(false);
-    }
+    node.set_pow_mode(pow_mode);
 
     node.start();
     // node.start_sync();
@@ -164,7 +162,7 @@ int main(int argc, char *argv[])
     
     if (interactive_meta_opt.empty() && interactive_wallet_opt.empty() && interactive_opt.empty()) {
 	std::cout << std::endl << program_name << ": --interactive, --interactive-wallet or --interactive-meta is missing (see --help.)" << std::endl << std::endl;
-	return 0;
+	return 1;
     }
 
     is_meta = !interactive_meta_opt.empty();
@@ -192,9 +190,16 @@ int main(int argc, char *argv[])
         dir = dir_opt;
     }
 
-    std::string ignore_pow = get_option(args, "--ignore_pow");
-    if (ignore_pow == "1" || ignore_pow == "true") {
-	check_pow = false;
+    std::string pow_mode_opt = get_option(args, "--pow_mode");
+    if (pow_mode_opt == "none") {
+	pow_mode = POW_NONE;
+    } else if (pow_mode_opt == "simple") {
+	pow_mode = POW_SIMPLE;
+    } else if (pow_mode_opt == "normal") {
+	pow_mode = POW_NORMAL;
+    } else {
+	std::cout << "pow_mode must be 'none', 'simple' or 'normal'" << std::endl;
+	return 1;
     }
 
     start();

@@ -46,6 +46,7 @@ public:
 
     // reward(Height, Coin)
     // Compute inflation reward at Height and make the sum available in Coin
+    static int64_t reward(size_t height);
     static bool reward_2(interpreter_base &interp, size_t arity, term args[] );
 
     // cjoin(InCoinList, CoinOut)
@@ -59,7 +60,6 @@ public:
 
     // cmove(InCoin, OutCoin)
     static bool cmove_2(interpreter_base &interp, size_t arity, term args[] );
-     
 };
 
 }}

@@ -5,12 +5,18 @@
 
 #include "../common/term_env.hpp"
 #include "../common/utime.hpp"
+#include "../common/bits.hpp"
 #include "../pow/pow_verifier.hpp"
-#include "../db/util.hpp"
 #include "../db/triedb.hpp"
 
 namespace epilog { namespace global {
 
+enum pow_mode_t {
+    POW_NONE = 0,
+    POW_SIMPLE = 1,
+    POW_NORMAL = 2
+};
+	
 using db_root_id = db::root_id;
 
 class meta_id {
@@ -62,7 +68,7 @@ private:
 namespace std {
     template<> struct hash<epilog::global::meta_id> {
 	size_t operator () (const epilog::global::meta_id &key) const {
-	    return static_cast<size_t>(epilog::db::read_uint64(key.hash()));
+	    return static_cast<size_t>(epilog::common::read_uint64(key.hash()));
 	}
     };
 }
@@ -81,7 +87,6 @@ namespace epilog { namespace global {
 //      version    : the current version
 //      height     : so we don't have to compute it
 //      timestamp  : When block was created as UNIX time
-//      nonce 
 //      pow_difficulty : the proof-of-work difficulty
 //      pow_proof  : the proof-of-work on the total state hash
 //
@@ -103,7 +108,6 @@ public:
 	  previous_id_(),
 	  version_(1),
 	  height_(0),
-	  nonce_(0),
 	  timestamp_(),
 	  pow_proof_(),
 	  pow_difficulty_(pow::flt1648(1)),
@@ -152,14 +156,6 @@ public:
 	height_ = h;
     }
 
-    uint64_t get_nonce() const {
-	return nonce_;
-    }
-
-    void set_nonce(uint64_t n) {
-	nonce_ = n;
-    }
-
     const common::utime & get_timestamp() const {
 	return timestamp_;
     }
@@ -184,7 +180,7 @@ public:
 	pow_difficulty_ = dif;
     }
 
-    bool validate_pow() const;
+    bool validate_pow(pow_mode_t mode) const;
 
     bool is_partial() const {
 	return get_root_id_heap().is_zero() ||
@@ -239,7 +235,6 @@ public:
 	return meta_id::HASH_SIZE + // 32 bytes
 	       sizeof(uint64_t) + // version 8 bytes
 	       meta_id::HASH_SIZE + // previous id (32 bytes)
-	       sizeof(uint64_t) + // nonce, 8 bytes (uint64_t)
 	       sizeof(common::utime) + // timestamp 8 bytes (uint64_t)
 	       pow::pow_proof::TOTAL_SIZE_BYTES + // currently 576 bytes
   	       8 + // pow difficulty, flt1648 is serialized in 8 bytes
@@ -252,33 +247,31 @@ public:
     void read(const uint8_t *data) {
 	auto p = data;
 	id_.read(p); p += meta_id::HASH_SIZE;
-	version_ = db::read_uint64(p); p += sizeof(uint64_t);
+	version_ = common::read_uint64(p); p += sizeof(uint64_t);
 	previous_id_.read(p); p += meta_id::HASH_SIZE;
-	nonce_ = db::read_uint64(p); p += sizeof(uint64_t);
 	timestamp_.read(p); p += timestamp_.serialization_size();
 	pow_difficulty_.read(p); p += pow_difficulty_.serialization_size();
 	pow_proof_.read(p); p += pow::pow_proof::TOTAL_SIZE_BYTES;
-	root_id_blocks_ = db_root_id(db::read_uint64(p)); p += sizeof(uint64_t);
-	root_id_heap_ = db_root_id(db::read_uint64(p)); p += sizeof(uint64_t);
-	root_id_closure_ = db_root_id(db::read_uint64(p)); p += sizeof(uint64_t);
-	root_id_symbols_ = db_root_id(db::read_uint64(p)); p += sizeof(uint64_t);
-	root_id_program_ = db_root_id(db::read_uint64(p)); p += sizeof(uint64_t);
+	root_id_blocks_ = db_root_id(common::read_uint64(p)); p += sizeof(uint64_t);
+	root_id_heap_ = db_root_id(common::read_uint64(p)); p += sizeof(uint64_t);
+	root_id_closure_ = db_root_id(common::read_uint64(p)); p += sizeof(uint64_t);
+	root_id_symbols_ = db_root_id(common::read_uint64(p)); p += sizeof(uint64_t);
+	root_id_program_ = db_root_id(common::read_uint64(p)); p += sizeof(uint64_t);
     }
 
     void write(uint8_t *data) const {
 	uint8_t *p = data;
 	id_.write(p); p += meta_id::HASH_SIZE;
-	db::write_uint64(p, version_); p += sizeof(uint64_t);
+	common::write_uint64(p, version_); p += sizeof(uint64_t);
 	previous_id_.write(p); p += meta_id::HASH_SIZE;
-	db::write_uint64(p, nonce_); p += sizeof(uint64_t);
 	timestamp_.write(p); p += timestamp_.serialization_size();
 	pow_difficulty_.write(p); p += pow_difficulty_.serialization_size();
 	pow_proof_.write(p); p += pow::pow_proof::TOTAL_SIZE_BYTES;
-	db::write_uint64(p, root_id_blocks_.value()); p += sizeof(uint64_t);
-	db::write_uint64(p, root_id_heap_.value()); p += sizeof(uint64_t);
-	db::write_uint64(p, root_id_closure_.value()); p += sizeof(uint64_t);
-	db::write_uint64(p, root_id_symbols_.value()); p += sizeof(uint64_t);
-	db::write_uint64(p, root_id_program_.value()); p += sizeof(uint64_t);
+	common::write_uint64(p, root_id_blocks_.value()); p += sizeof(uint64_t);
+	common::write_uint64(p, root_id_heap_.value()); p += sizeof(uint64_t);
+	common::write_uint64(p, root_id_closure_.value()); p += sizeof(uint64_t);
+	common::write_uint64(p, root_id_symbols_.value()); p += sizeof(uint64_t);
+	common::write_uint64(p, root_id_program_.value()); p += sizeof(uint64_t);
     }
 
     bool operator == (const meta_entry &other) const {
@@ -286,7 +279,6 @@ public:
 	       get_previous_id() == other.get_previous_id() &&
 	       get_version() == other.get_version() &&
 	       get_height() == other.get_height() &&
-	       get_nonce() == other.get_nonce() &&
 	       get_timestamp() == other.get_timestamp() &&
 	       get_pow_difficulty() == other.get_pow_difficulty();
     }
@@ -300,7 +292,6 @@ private:
     meta_id previous_id_;
     uint64_t version_;
     uint32_t height_;
-    uint64_t nonce_;
     common::utime timestamp_;
     pow::pow_proof pow_proof_;
     pow::pow_difficulty pow_difficulty_;

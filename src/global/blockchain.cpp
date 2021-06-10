@@ -53,26 +53,22 @@ void blockchain::update_meta_id()
     uint8_t data[1024];
 
     // Add number of entries in heap, closures, symbols and program.
-    db::write_uint64(data, heap_db().num_entries(t.get_root_id_heap()));
+    common::write_uint64(data, heap_db().num_entries(t.get_root_id_heap()));
     blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, closure_db().num_entries(t.get_root_id_closure()));
+    common::write_uint64(data, closure_db().num_entries(t.get_root_id_closure()));
     blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, symbols_db().num_entries(t.get_root_id_symbols()));
+    common::write_uint64(data, symbols_db().num_entries(t.get_root_id_symbols()));
     blake2b_update(&s, data, sizeof(uint64_t));
-    db::write_uint64(data, program_db().num_entries(t.get_root_id_program()));
+    common::write_uint64(data, program_db().num_entries(t.get_root_id_program()));
     blake2b_update(&s, data, sizeof(uint64_t));
 
     // Add version
-    db::write_uint64(data, tip_.get_version());
+    common::write_uint64(data, tip_.get_version());
     blake2b_update(&s, data, sizeof(uint64_t));
 
     // Add height
-    db::write_uint32(data, tip_.get_height());
+    common::write_uint32(data, tip_.get_height());
     blake2b_update(&s, data, sizeof(uint32_t));
-
-    // Add nonce
-    db::write_uint64(data, tip_.get_nonce());
-    blake2b_update(&s, data, sizeof(uint64_t));
 
     // Add timestamp
     auto &ts = tip_.get_timestamp();
@@ -167,7 +163,6 @@ void blockchain::init()
     }
 
     version_ = VERSION;
-    nonce_ = 0;
     time_ = utime();
 }
 
@@ -265,7 +260,6 @@ void blockchain::advance() {
     new_tip.set_previous_id(tip().get_id());
     new_tip.set_version(version_);
     new_tip.set_timestamp(time_);
-    new_tip.set_nonce(nonce_);
     new_tip.set_height(new_height);
     new_tip.set_root_id_meta(next_meta);
     new_tip.set_root_id_blocks(next_blocks);

@@ -34,10 +34,12 @@ public:
 };
 
 class global;
+class builtins;
 
 class global_interpreter : public interp::interpreter {
 public:
     friend class global;
+    friend class builtins;
 
     using interperter_base = interp::interpreter_base;
     using term = common::term;
@@ -112,12 +114,11 @@ public:
   
     static void setup_consensus_lib(interpreter &interp);
   
-    inline void set_naming(bool b) { naming_ = b; }
-
     void preprocess_hashes(term t);
     bool execute_goal(term t);
     bool execute_goal(buffer_t &serialized, bool silent);
     void execute_cut();
+    int64_t available_fees();
   
     inline bool is_empty_stack() const {
         bool r = !has_meta_context() &&
@@ -208,6 +209,10 @@ private:
 
     common::heap_block * db_get_heap_block(size_t block_index);
 
+    inline std::unordered_set<common::ref_cell> & singleton_vars_in_goal() {
+	return singleton_vars_in_goal_;
+    }
+    
     inline common::heap_block & get_heap_block(size_t block_index)
     {
         if (current_block_index_ == block_index) {
@@ -250,8 +255,6 @@ private:
     void setup_builtins();
 
     global &global_;
-    bool naming_;
-    std::unordered_map<std::string, term> name_to_term_;
 
     size_t current_block_index_;
     common::heap_block *current_block_;
@@ -284,6 +287,8 @@ private:
 
     size_t next_predicate_id_;
     size_t start_next_predicate_id_;
+
+    std::unordered_set<common::ref_cell> singleton_vars_in_goal_;
 };
 
 }}

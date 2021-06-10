@@ -216,7 +216,7 @@ namespace std {
 	size_t operator () (const epilog::db::node_hash &h) const {
 	    assert(h.hash_size() >= 8);
 	    auto *bytes = h.hash();
-	    return static_cast<size_t>(epilog::db::read_uint64(bytes));
+	    return static_cast<size_t>(epilog::common::read_uint64(bytes));
 	}
     };
 };

@@ -21,6 +21,7 @@
 #include "../global/global.hpp"
 #include "../terminal/terminal.hpp"
 #include "node_locker.hpp"
+#include "mempool.hpp"
 
 namespace epilog { namespace node {
 
@@ -113,6 +114,9 @@ public:
     // Must be a Prolog term
     void set_comment(const std::string &str);
     inline term get_comment() const { return comment_; }
+
+    // Return mempol
+    inline class mempool & mempool() { return mempool_; }
 
     // Funding settings
     inline uint64_t get_initial_funds() const { return initial_funds_; }
@@ -254,12 +258,12 @@ public:
 	return parallel_;
     }
 
-    bool check_pow() const {
-	return global().check_pow();
+    global::pow_mode_t pow_mode() const {
+	return global().pow_mode();
     }
     
-    void set_check_pow(bool b) {
-	global().set_check_pow(b);
+    void set_pow_mode(global::pow_mode_t mode) {
+	global().set_pow_mode(mode);
     }
 
     void change_connection_name(const std::string &old, const std::string &name);
@@ -375,6 +379,8 @@ private:
     boost::condition_variable parallel_changed_;
 
     sync *sync_{nullptr};
+
+    class mempool mempool_;
 };
 
 inline address_book_wrapper::address_book_wrapper(self_node &self, address_book &book) : self_(self), book_(book)

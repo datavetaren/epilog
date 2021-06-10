@@ -85,7 +85,7 @@ static size_t setup_global_basic(const std::string &test_dir)
 	    list_tail = new_pair;
 	}
     }
-    g.increment_height();
+    g.advance();
 
     // Let's bind the first var to list head
 
@@ -99,7 +99,7 @@ static size_t setup_global_basic(const std::string &test_dir)
 
     std::cout << "Ref " << ref_heap_pos << " is now bound." << std::endl;
 
-    g.increment_height();
+    g.advance();
 
     std::cout << "Heap size is: " << g.interp().get_heap().size() << std::endl;
     

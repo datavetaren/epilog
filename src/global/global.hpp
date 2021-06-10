@@ -7,8 +7,8 @@
 #include "../common/term_serializer.hpp"
 #include "../common/fast_hash.hpp"
 #include "../common/checked_cast.hpp"
+#include "../common/bits.hpp"
 #include "../db/triedb.hpp"
-#include "../db/util.hpp"
 #include "global_interpreter.hpp"
 #include "blockchain.hpp"
 #include <unordered_map>
@@ -31,7 +31,7 @@ public:
     global_db_no_interpreter_exception(const std::string &msg) : global_db_exception(msg) {
     }
 };
-    
+
 //
 // global. This class captures the global state that everybody shares
 // in the network.
@@ -44,19 +44,19 @@ private:
     static const size_t MB = 1024*1024;
     static const size_t GB = 1024*MB;
 
-    bool pow_check_{true};
+    pow_mode_t pow_mode_{POW_NORMAL};
 
 public:
     static const size_t BLOCK_CACHE_SIZE = 4*GB;
 
     inline const std::string & data_dir() { return data_dir_; }
 
-    inline bool check_pow() const {
-	return pow_check_;
+    inline pow_mode_t pow_mode() const {
+	return pow_mode_;
     }
     
-    inline void set_check_pow(bool b) {
-	pow_check_ = b;
+    inline void set_pow_mode(pow_mode_t mode) {
+	pow_mode_ = mode;
     }
     
     global(const std::string &data_dir);
@@ -68,6 +68,10 @@ public:
 	return blockchain_.tip().get_id();
     }
 
+    const meta_entry & tip() const {
+	return blockchain_.tip();
+    }
+
     void total_reset();
 
     void go_debug();
@@ -75,7 +79,6 @@ public:
     static void erase_db(const std::string &data_dir);
   
     inline term_env & env() { return *interp_; }
-    inline void set_naming(bool b) { interp_->set_naming(b); }
 
     inline static void setup_consensus_lib(interp::interpreter &interp) {
         global_interpreter::setup_consensus_lib(interp);
@@ -110,10 +113,18 @@ public:
         return interp_->execute_goal(const_cast<buffer_t &>(buf), true);
     }
 
+    inline void stop() {
+	check_interp();
+	interp_->stop();
+    }
+
     void init_empty_goals();
 
+    void setup_commit();
+    void setup_commit(const meta_entry &entry);
     void setup_commit(const buffer_t &buf);
     bool execute_commit(const buffer_t &buf);
+    bool wrap_fees(term_env &src, term &goals, term fee_coin, term to_add);
 
     inline void execute_cut() {
 	check_interp();
@@ -143,6 +154,7 @@ public:
 
     void advance() {
 	check_interp();
+	execute_cut();
 	increment_height();
     }
 
@@ -203,9 +215,9 @@ public:
 					  size_t symbol_index,
 					  const std::string &symbol_name) {
 	uint8_t *p = buffer;
-	db::write_uint32(p, common::checked_cast<uint32_t>(symbol_index));
+	common::write_uint32(p, common::checked_cast<uint32_t>(symbol_index));
 	p += sizeof(uint32_t);
-	db::write_uint32(p, common::checked_cast<uint32_t>(symbol_name.size()));
+	common::write_uint32(p, common::checked_cast<uint32_t>(symbol_name.size()));
 	p += sizeof(uint32_t);
 	memcpy(p, symbol_name.c_str(), symbol_name.size());
 	return 2*sizeof(uint32_t)+symbol_name.size();
@@ -213,8 +225,8 @@ public:
 
     std::pair<size_t, std::string> db_custom_data_to_symbol_entry(const uint8_t *buffer) {
 	const uint8_t *p = buffer;
-	size_t symbol_index = db::read_uint32(p); p += sizeof(uint32_t);
-	size_t str_len = db::read_uint32(p); p += sizeof(uint32_t);
+	size_t symbol_index = common::read_uint32(p); p += sizeof(uint32_t);
+	size_t str_len = common::read_uint32(p); p += sizeof(uint32_t);
 	assert(str_len < common::con_cell::MAX_NAME_LENGTH);
 	std::string symbol_name(reinterpret_cast<const char *>(p), str_len);
 	return std::make_pair(symbol_index, symbol_name);
@@ -224,9 +236,9 @@ public:
 					  const std::string &symbol_name,
 					  uint8_t *buffer) {
 	uint8_t *p = buffer;
-	db::write_uint32(p, common::checked_cast<uint32_t>(symbol_index));
+	common::write_uint32(p, common::checked_cast<uint32_t>(symbol_index));
 	p += sizeof(uint32_t);
-	db::write_uint32(p, common::checked_cast<uint32_t>(symbol_name.size()));
+	common::write_uint32(p, common::checked_cast<uint32_t>(symbol_name.size()));
 	p += sizeof(uint32_t);
 	memcpy(p, symbol_name.c_str(), symbol_name.size());
 	return 2*sizeof(uint32_t) + symbol_name.size();
@@ -285,7 +297,7 @@ public:
 	    size_t n = leaf->custom_data_size();
 	    const uint8_t *p = leaf->custom_data();
 	    p += sizeof(uint32_t); /* Skip index */
-	    size_t str_len = db::read_uint32(p); p += sizeof(uint32_t);
+	    size_t str_len = common::read_uint32(p); p += sizeof(uint32_t);
 	    assert(n == 2*sizeof(uint32_t)+str_len);
 	    std::string str(reinterpret_cast<const char *>(p), str_len);
 	    if (name == str) {
@@ -354,7 +366,7 @@ public:
 	    return common::heap::EMPTY_LIST;
 	}
 	assert(leaf->custom_data_size() == sizeof(uint64_t));
-	return common::cell(db::read_uint64(leaf->custom_data()));
+	return common::cell(common::read_uint64(leaf->custom_data()));
     }
 
     void db_remove_closure(size_t addr) {
@@ -363,7 +375,7 @@ public:
 
     void db_set_closure(size_t addr, term t) {
 	uint8_t buffer[sizeof(uint64_t)];
-	db::write_uint64(buffer, t.raw_value());
+	common::write_uint64(buffer, t.raw_value());
 	blockchain_.closure_db().update(blockchain_.closure_root(), addr,
 					 buffer, sizeof(buffer));
     }
@@ -387,6 +399,8 @@ public:
     term db_best_path(common::term_env &dst, const meta_id &id, size_t n);
     void db_put_metas(common::term_env &src, common::term meta_terms);
     bool db_parse_meta(common::term_env &src, common::term meta_term, meta_entry &out);
+    bool db_validate_meta(common::term_env &src, common::term meta_term, const meta_entry &e);
+    bool db_get_block_hash(common::term_env &src, common::term meta_term, db::node_hash &hash);
 
 private:
     void custom_data_to_heap_block(const uint8_t *custom_data,
@@ -396,7 +410,7 @@ private:
 	common::cell *dst = blk.cells();
 	const uint8_t *src = custom_data;
 	for (size_t i = 0; i < n; i++, dst++, src += sizeof(uint64_t)) {
-	    *dst = common::cell(db::read_uint64(src));
+	    *dst = common::cell(common::read_uint64(src));
 	}
 	blk.trim(n);
     }
@@ -409,7 +423,7 @@ private:
 	auto *dst = custom_data;
 	const common::cell *src = blk.cells();
 	for (size_t i = 0; i < n; i++, dst += sizeof(uint64_t), src++) {
-	    db::write_uint64(dst, static_cast<uint64_t>(src->raw_value()));
+	    common::write_uint64(dst, static_cast<uint64_t>(src->raw_value()));
 	}
     }
 

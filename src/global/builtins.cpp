@@ -1,5 +1,6 @@
 #include "builtins.hpp"
 #include "../coin/builtins.hpp"
+#include "../coin/coin.hpp"
 #include "global.hpp"
 
 using namespace epilog::common;
@@ -21,8 +22,6 @@ void builtins::load(interpreter_base &interp, con_cell *module0)
     // This will override the coin::reward_2 builtin (and this will use
     // coin::reward_2 builtin under the hood)
     interp.load_builtin(M, con_cell("reward", 2), &builtins::reward_2);
-
-    interp.load_builtin(M, interp.functor("increment_height", 0), &builtins::increment_height_0);
 
     interp.load_builtin(con_cell("ref",2), builtin(&builtins::ref_2));
 }
@@ -61,10 +60,12 @@ bool builtins::current_height_1(interpreter_base &interp, size_t arity, term arg
     return interp.unify(args[0], int_cell(height));
 }
     
-bool builtins::reward_2(interpreter_base &interp, size_t arity, term args[] )
+bool builtins::reward_2(interpreter_base &interp0, size_t arity, term args[] )
 {
+    auto &interp = reinterpret_cast<global_interpreter &>(interp0);
+    
   // We need to override coin::reward_2 with this one as coin does not have
-  // access to current height.
+  // access to current height and fees.
   
   if (args[0].tag() != tag_t::INT && args[0].tag() != tag_t::REF) {
         throw interpreter_exception_wrong_arg_type(
@@ -82,14 +83,10 @@ bool builtins::reward_2(interpreter_base &interp, size_t arity, term args[] )
     if (static_cast<size_t>(height) != g.current_height()) {
         return false;
     }
-    auto r = epilog::coin::builtins::reward_2(interp, arity, args);
-    return r;
-}
-
-bool builtins::increment_height_0(interpreter_base &interp, size_t arity, term args[] ) {
-    auto &g = get_global(interp);
-    g.increment_height();
-    return true;
+    auto reward = epilog::coin::builtins::reward(height);
+    auto disabled = interp.disable_coin_security();
+    term coin = interp.new_term( con_cell("$coin",2), {int_cell(reward)} );
+    return interp.unify(coin, args[1]);
 }
 
 }}

@@ -96,9 +96,11 @@ public:
     static bool branches_2(interpreter_base &interp, size_t arity, term args[]);
     static bool current_1(interpreter_base &interp, size_t arity, term args[]);
 
+    static bool setup_commit_0(interpreter_base &interp, size_t arity, term args[]);    
     static bool setup_commit_1(interpreter_base &interp, size_t arity, term args[]);
-    static bool commit(local_interpreter &interp, buffer_t &buf, term t, bool naming);
-    static bool commit_2(interpreter_base &interp, size_t arity, term args[]);
+    static bool commit(local_interpreter &interp, buffer_t &buf, term t);
+    static bool commit_1(interpreter_base &interp, size_t arity, term args[]);
+    static bool wrapfee_4(interpreter_base &interp, size_t arity, term args[]);
     static bool global_impl(interpreter_base &interp, size_t arity, term args[], bool silent);
     static bool global_1(interpreter_base &interp, size_t arity, term args[]);
     static bool global_silent_1(interpreter_base &interp, size_t arity, term args[]);
@@ -116,7 +118,7 @@ public:
     static bool syncing_meta_1(interpreter_base &interp, size_t arity, term args[]);
     static bool sync_progress_1(interpreter_base &interp, size_t arity, term args[]);
     static bool sync_point_2(interpreter_base &interp, size_t arity, term args[]);
-    static bool ignore_pow_1(interpreter_base &interp, size_t arity, term args[]);
+    static bool pow_mode_1(interpreter_base &interp, size_t arity, term args[]);
 
 
     static term build_leaf_term(interpreter_base &interp0, const db::merkle_leaf *lf, size_t pos);
@@ -143,6 +145,16 @@ public:
     static bool db_put_4(interpreter_base &interp, size_t arity, term args[]);
     static bool db_put_3(interpreter_base &interp, size_t arity, term args[]);    
     static bool ptask_0(interpreter_base &interp, size_t arity, term args[]);
+
+    // Put a new transaction in mempool (if not already present)
+    // Validate the transaction first (so it doesn't fail at the current state)
+    static bool new_tx_1(interpreter_base &interp, size_t arity, term args[]);
+
+    // For miners
+    static bool pow_0(interpreter_base &interp, size_t arity, term args[]);
+    static bool verify_pow_1(interpreter_base &interp, size_t arity, term args[]);
+    static bool new_blk_2(interpreter_base &interp, size_t arity, term args[]);
+    
 };
 
 class local_interpreter_exception : public interp::interpreter_exception {

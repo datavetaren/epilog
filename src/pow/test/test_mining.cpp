@@ -52,7 +52,7 @@ static void test_pow_mining()
 
 	auto start_time = boost::posix_time::microsec_clock::universal_time();
 
-	if (!search_proof( keys, 8, difficulty, proof)) {
+	if (!search_proof( keys, 8, difficulty, proof, false)) {
 	    std::cout << "Failed to find proof for '" << msg << "' " << std::endl;
 	}
 	

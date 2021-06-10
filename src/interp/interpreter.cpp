@@ -14,6 +14,14 @@ interpreter::interpreter(const std::string &name) : wam_interpreter(name)
     num_instances_ = 0;
 }
 
+void interpreter::reset()
+{
+    wam_interpreter::reset();
+    query_vars_ = nullptr;
+    num_instances_ = 0;
+    new_instance_created_.clear();
+}
+
 void interpreter::total_reset()
 {
     wam_interpreter::total_reset();
@@ -194,15 +202,12 @@ bool interpreter::execute(const term query)
 {
     using namespace epilog::common;
 
-    bool do_new_instance = false;
-    
     while (num_instances() > 0 && !has_more()) {
 	delete_instance();
     }
     
     if (has_more()) {
 	new_instance();
-	do_new_instance = true;
     } else {
         // Overriding last instance
         if (!is_retain_state_between_queries()) {
@@ -219,7 +224,6 @@ bool interpreter::execute(const term query)
     prepare_execution();
 
     std::unordered_set<std::string> seen;
-    bool query_has_vars = false;
 
     // Record all vars for this query
     std::for_each( begin(query),
@@ -227,7 +231,6 @@ bool interpreter::execute(const term query)
 		   [&](term t) {
 
 		     if (t.tag().is_ref()) {
-		  	   query_has_vars = true;
 		           t = reinterpret_cast<ref_cell &>(t).unwatch();
 			   const std::string name = to_string(t);
 			   if (!seen.count(name)) {
@@ -251,12 +254,22 @@ bool interpreter::execute(const term query)
 
     set_qr(query);
 
-    if (!has_more() && !query_has_vars && do_new_instance) {
-	delete_instance();
-    }
-    
     return b;
 }
+
+void interpreter::stop()
+{
+    bool b = false;
+    if (!new_instance_created_.empty()) {
+	new_instance_created_.back();
+	new_instance_created_.pop_back();
+    }
+    if (b) {
+	delete_instance();
+    } else {
+	clear_trail();
+    }
+}    
 
 bool interpreter::cont()
 {

@@ -115,7 +115,7 @@ program_state_check :-
 
 ?- final_check.
 % Expect: true
-?- program_state_check.
+?- program_state @ global, program_state_check.
 % Expect: true
 
 % Let's go further back in time and retry
