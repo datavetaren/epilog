@@ -247,6 +247,13 @@ namespace boost {
     };
 }
 
+namespace std { 
+    template<> struct make_unsigned<epilog::common::cell_byte> {
+	typedef epilog::common::cell_byte type;
+    };
+}
+
+
 namespace epilog { namespace common {
 
 class cell : public untagged_cell {
