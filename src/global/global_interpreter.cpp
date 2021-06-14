@@ -73,6 +73,7 @@ void global_interpreter::total_reset()
     current_block_index_ = static_cast<size_t>(-2);
     current_block_ = nullptr;
     new_atoms_.clear();
+    new_atom_indices_.clear();
     modified_blocks_.clear();
     updated_predicates_.clear();
     old_predicates_.clear();
@@ -326,6 +327,7 @@ void global_interpreter::discard_changes() {
     for (auto &sym : new_atoms_) {
 	clear_atom_index(sym.second, sym.first);
     }
+    new_atom_indices_.clear();
 
     // Reset symbol counters
     next_atom_id_ = start_next_atom_id_;
@@ -378,6 +380,7 @@ size_t global_interpreter::new_atom(const std::string &atom_name)
     next_atom_id_++;
     set_atom_index(atom_name, atom_id);
     new_atoms_.push_back(std::make_pair(atom_id, atom_name));
+    new_atom_indices_[atom_name] = atom_id;
     return atom_id;
 }
 
@@ -391,9 +394,16 @@ void global_interpreter::load_atom_name(size_t index)
 
 void global_interpreter::load_atom_index(const std::string &name)
 {
+    auto it = new_atom_indices_.find(name);
+    if (it != new_atom_indices_.end()) {
+	return;
+    }
+    
     auto index = get_global().db_get_symbol_index(name);
     if (index != 0) {
 	set_atom_index(name, index);
+    } else {
+	new_atom(name);
     }
 }
 
@@ -559,6 +569,7 @@ void global_interpreter::commit_symbols()
     }
 
     new_atoms_.clear();
+    new_atom_indices_.clear();
 }
 
 void global_interpreter::commit_closures()

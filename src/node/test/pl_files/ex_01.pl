@@ -27,7 +27,7 @@ pkey2(58'L15fZcjA6ABYayBAQRPvTEZMYQ4WZ19y2fCzdZ3FNjny9aCNB7SZ).
    Script = (Sign = MySignature,
 	     (p(Hash) :- frozenk(-1,1,[H]),
 	                 defrost(H, Closure, [Hash, args(Sign,PubKey,Address)]),
-			 arg(4, Closure, MyCoin),
+			 arg(7, Closure, MyCoin),
 			 tx(MyCoin, Hash0, tx1, args(_,_,NewAddress), _))),
    arg(2, Script, ScriptBody),
    ec:hash(ScriptBody, ScriptHash),

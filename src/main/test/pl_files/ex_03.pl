@@ -89,7 +89,7 @@ wait_connections(Node) :-
 % Expect: true/*
 
 % Miner sends coins to these wallets
-?- tmp:wallet1(0, A), tmp:wallet2(0, B), (password("wm"), spend_many([A,B],[1_000_000, 2_000_000], 300_000, Tx, RemoveUtxos)) @ wallet(wm), retract_utxos(RemoveUtxos) @ wallet(wm), commit(Tx) @- node(miner).
+?- tmp:wallet1(0, A), tmp:wallet2(0, B), (password("wm"), spend_many([A,B],[1_000_000, 2_000_000], 300_000, Tx, RemoveUtxos)) @ wallet(wm), write(Tx), nl, retract_utxos(RemoveUtxos) @ wallet(wm), commit(Tx) @- node(miner).
 % Expect: true/*
 
 % Check new balance

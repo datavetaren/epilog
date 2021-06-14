@@ -66,7 +66,7 @@ foo5 :- freeze(A, B = hello(A)), frozenk(-1, 10, Xs), Xs = [_].
 
 % Unfreeze frozen closures by accessing them explicitly
 foo6(Closure) :- foo5, frozenk(-1, 10, [Addr]), frozen(Addr, Closure).
-foo7(T) :- foo6(Closure), arg(2, Closure, Closure0), arg(1, Closure0, V), V = 424711, arg(2, Closure0, T).
+foo7(T) :- foo6(Closure), arg(2, Closure, Closure0), arg(4, Closure0, V), V = 424711, arg(5, Closure0, T).
 ?- foo7(T), frozenk(0, 10, []).
 % Expect: T = hello(424711).
 % Expect: end
@@ -106,14 +106,14 @@ foo9 :-
     frozen(Addr, Closure),
     arg(2, Closure, Closure0),
     % Check that we got the right closure
-    arg(3, Closure0, thepubkeyhash),
+    arg(6, Closure0, thepubkeyhash),
     % Prepare everything except hash
-    arg(2, Closure0, thepubkey),
-    arg(5, Closure0, thesign),
+    arg(5, Closure0, thepubkey),
+    arg(8, Closure0, thesign),
     % Wake up frozen closure...
-    arg(1, Closure0, sys(somehash)),
+    arg(4, Closure0, sys(somehash)),
     % Now we have the coin:
-    arg(6, Closure0, OurCoin),
+    arg(9, Closure0, OurCoin),
     tx(OurCoin, _, _, _, youraddress, _),
     write(OurCoin), nl.
 

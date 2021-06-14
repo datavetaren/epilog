@@ -133,9 +133,9 @@ resync :-
 '$new_utxo_closure'(HeapAddress, '$freeze':F) :-
     functor(F, _, Arity),
     Arity >= 3,
-    arg(2, F, TxType),
-    arg(3, F, Args),
-    arg(5, F, Coin),
+    arg(5, F, TxType),
+    arg(6, F, Args),
+    arg(8, F, Coin),
     arg(1, Coin, Value),
     ((current_predicate(wallet:new_utxo/4), wallet:new_utxo(TxType, HeapAddress, Value, Args)) -> true
  ; '$new_utxo'(TxType, HeapAddress, Value, Args)
@@ -268,7 +268,7 @@ retract_utxos([HeapAddr|HeapAddrs]) :-
     wallet:pubkey(Count, PubKey),
     Commands = [defrost(HeapAddress, Closure,
                        [Hash, args(Signature,PubKey,PubKeyAddress)]),
-                arg(4, Closure, Coin)].
+                arg(7, Closure, Coin)].
 
 '$choose'(_, 0, []) :- !.
 '$choose'([utxo(Value,HeapAddress)|Utxos], Funds, Chosen) :-

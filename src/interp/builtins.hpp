@@ -250,6 +250,13 @@ typedef std::pair<common::con_cell, common::con_cell> qname;
         // defrost(+HeapAddress, -Closure, +Values)
         static bool defrost_3(interpreter_base &interp, size_t arity, common::term args[] );
 
+	// caller(Module, Name, Arity)
+	// Tell which predicate we are currently executing. This is needed
+	// for frozen closures to pervent users from spoofing UTXOs that
+	// can be used to identify transaction types _without_ having to
+	// reveal the receiver's private key.
+	static bool caller_3(interpreter_base &interp, size_t arity, common::term args[] );
+
         // password(+String, [+Options])
         // General password management. If password(String) used then
         // it temporarily sets the password for the next query (and then

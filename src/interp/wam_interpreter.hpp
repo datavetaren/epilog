@@ -473,14 +473,14 @@ public:
         return predicate_map_[qn];
     }
 
-    const qname get_wam_predicate(size_t code_addr)
+    const qname & get_wam_predicate(size_t code_addr)
     {
         auto it = predicate_rev_map_.find(code_addr);
         if (it == predicate_rev_map_.end()) {
 	    it = predicate_rev_map_.lower_bound(code_addr);
 	    --it;
 	}
-	qname qn = (*it).second;
+	const qname &qn = (*it).second;
 	return qn;
     }
 
@@ -689,6 +689,10 @@ public:
 	return map;
     }
 
+    virtual void update_pr() override {
+	set_pr(get_caller_predicate(this));
+    }
+
     virtual void updated_predicate_post(const qname &qn) override {
 	interpreter_base::updated_predicate_post(qn);
 	remove_compiled(qn);
@@ -772,6 +776,8 @@ private:
 
     template<wam_instruction_type I> friend class wam_instruction;
 
+    static qname get_caller_predicate(interpreter_base *interp);
+    
     static inline size_t num_y(interpreter_base *interp, bool use_previous)
     {
 	auto wami = reinterpret_cast<wam_interpreter *>(interp);

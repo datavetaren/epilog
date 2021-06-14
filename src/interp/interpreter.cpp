@@ -741,7 +741,11 @@ void interpreter::dispatch()
 	return;
     }
 
-    set_pr(f);
+    // Do not update if qn module is '$freeze'
+    static const common::con_cell FREEZE("$freeze",0);
+    if (qn.first != FREEZE) {
+	set_pr(qn);
+    }
 
     // Otherwise a vector of clauses
     auto &clauses = pred.get_clauses(*this, first_arg);

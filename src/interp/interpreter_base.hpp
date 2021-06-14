@@ -368,7 +368,7 @@ struct choice_point_t {
     size_t                h; 
     choice_point_t       *b0;
     common::term          qr; // Only used for naive interpreter (for now)
-    common::con_cell      pr; // Only used for naive interpreter (for now)
+    qname                 pr; // (not used by WAM as WAM already knows this)
     size_t                arity;
     common::term          ai[];
 };
@@ -377,7 +377,7 @@ struct choice_point_t {
 struct environment_naive_t : public environment_base_t {
     choice_point_t       *b0;
     common::term          qr;
-    common::con_cell      pr;
+    qname                 pr;
 };
 
 struct environment_frozen_t : public environment_naive_t {
@@ -871,6 +871,8 @@ public:
 	    return pred;
 	}
 
+    virtual void update_pr();
+    
     virtual size_t num_predicates() const
     {
 	return program_db_.size();
@@ -982,6 +984,20 @@ public:
 
     inline void set_code(const qname &qn, const code_point &cp)
     {
+	con_cell us("user",0);
+	con_cell ff = functor("program_state",1);
+	qname myqn(us,ff);
+
+	if (code_db_.find(myqn) != code_db_.end()) {
+	    auto &ww1 = code_db_[myqn];
+
+	    if (ww1.is_builtin()) {
+		if (ww1.bn() != builtins::program_state_1) {
+		    int xyzzy = 42;
+		    (void)xyzzy;
+		}
+	    }
+	}
         code_db_[qn] = cp;
     }
 
@@ -1667,7 +1683,10 @@ protected:
     inline void set_qr(term qr)
         { register_qr_ = qr; }
 
-    inline void set_pr(common::con_cell pr)
+    inline const qname & get_pr() const
+    { return register_pr_; }
+
+    inline void set_pr(const qname &pr)
         { register_pr_ = pr; }
 
     choice_point_t * reset_to_choice_point(choice_point_t *b);
@@ -1855,7 +1874,7 @@ private:
     restore_state_fn_t restore_state_fn_;
 
     term register_qr_;     // Current query 
-    con_cell register_pr_; // Current predicate (for profiling)
+    qname register_pr_; // Current predicate
 
     bool in_critical_section_;
     
@@ -2449,6 +2468,12 @@ inline void interpreter_base::check_frozen()
 	    clear_frozen_closure(addr);
 	    if (cl != EMPTY_LIST) {
 		allocate_environment<ENV_FROZEN, environment_frozen_t *>();
+		// The first arguments of goal is the current predicate
+		auto mod = arg(cl, 0);
+		auto name = arg(cl, 1);
+		if (is_functor(mod) && is_functor(name)) {
+		    set_pr(qname(functor(mod),functor(name)));
+		}
 		allocate_environment<ENV_NAIVE, environment_naive_t *>();
 		set_cp(code_point(EMPTY_LIST));
 		set_p(code_point(cl));

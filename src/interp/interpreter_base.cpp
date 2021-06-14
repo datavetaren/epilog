@@ -99,7 +99,6 @@ void interpreter_base::init()
 {
     delayed_ready_ = 0;
     has_updated_predicates_ = false;
-    register_pr_ = con_cell("",0);
     in_critical_section_ = false;
     arith_.total_reset();
     locale_.total_reset();
@@ -140,6 +139,8 @@ void interpreter_base::init()
     register_top_tr_ = trail_size();
 
     set_current_module(con_cell("user",0));
+
+    register_pr_ = qname(current_module(), EMPTY_LIST);
 }
 
 interpreter_base::~interpreter_base()
@@ -316,6 +317,9 @@ void interpreter_base::reset()
     tidy_trail();
 }
 
+void interpreter_base::update_pr() {
+}
+	
 std::string code_point::to_string(const interpreter_base &interp) const
 {
     if (has_wam_code()) {
@@ -416,8 +420,33 @@ bool interpreter_base::has_told_standard_outputs()
 
 void interpreter_base::preprocess_freeze(term t)
 {
-    term body = clause_body(t);
-    preprocess_freeze_body(body);
+    qname old_pr = get_pr();
+    auto head = clause_head(t);
+    set_pr( qname(EMPTY_LIST, EMPTY_LIST) );
+    if (is_functor(head)) {
+	con_cell f = functor(head);
+	con_cell name = f;
+	con_cell module = current_module();
+	if (f == COLON) {
+	    auto m = arg(head, 0);
+	    if (is_functor(m)) {
+		module = functor(m);
+	    }
+	    if (is_functor(arg(head,1))) {
+		name = functor(arg(head,1));
+	    }
+	}
+	set_pr(qname(module, name));
+    }
+
+    try {
+	term body = clause_body(t);
+	preprocess_freeze_body(body);
+    } catch (std::exception &) {
+	set_pr(old_pr);
+	throw;
+    }
+    set_pr(old_pr);
 }
 
 void interpreter_base::preprocess_freeze_body(term goal)
@@ -440,9 +469,9 @@ void interpreter_base::preprocess_freeze_body(term goal)
     if (f == freeze) {
         // Rewrite
         // freeze(Var, Body)
-        // freeze(Var, '$freeze':<id>(<Var> <Closure Vars>))
+        // freeze(Var, '$freeze':<id>(<Predicate>, <Var> <Closure Vars>))
         // where:
-        // '$freeze':'<id>'(<Var> <Closure Vars> ...) :- Body.
+        // '$freeze':'<id>'(<Predicate>, <Var> <Closure Vars> ...) :- Body.
         term freezeVar = arg(goal, 0);
 	term freezeBody = arg(goal, 1);
 
@@ -485,12 +514,12 @@ term interpreter_base::rewrite_freeze_body(term freezeVar, term freezeBody)
 	}
       }
     }
-    
-    auto qname = gen_predicate(freeze_module, vars_list.size());
+
+    auto qname = gen_predicate(freeze_module, vars_list.size()+3);
 	
     auto head = new_str(qname.second);
     for (size_t i = 0; i < vars_list.size(); i++) {
-      varmap[vars_list[i]] = arg(head,i);
+      varmap[vars_list[i]] = arg(head,i+3);
     }
 
     // Remap vars (closure vars to new vars)
@@ -518,8 +547,13 @@ term interpreter_base::rewrite_freeze_body(term freezeVar, term freezeBody)
     // get_predicate(qname).add_clause(*this, freeze_clause);
 
     auto closure_head = new_str(qname.second);
+    // Store current executing predicate in the closure call
+    // (we'll update the pr register when woken up)
+    set_arg(closure_head, 0, get_pr().first.to_atom());
+    set_arg(closure_head, 1, get_pr().second.to_atom());
+    set_arg(closure_head, 2, int_cell(static_cast<int64_t>(get_pr().second.arity())));
     for (size_t i = 0; i < vars_list.size(); i++) {
-        set_arg(closure_head, i, vars_list[i]);
+        set_arg(closure_head, i+3, vars_list[i]);
     }
     
     auto closure_mod = new_str(op_colon);
@@ -671,6 +705,7 @@ void interpreter_base::set_debug_enabled()
     load_builtin(functor("debug_predicate",1), &interpreter::debug_predicate_1);
     load_builtin(functor("program_state",0), &builtins::program_state_0);
     load_builtin(functor("program_state",1), &builtins::program_state_1);
+
     set_current_module(old_mod);
     use_module(con_cell("system",0));
 }

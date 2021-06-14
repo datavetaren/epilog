@@ -1586,6 +1586,15 @@ public:
 	atom_index_to_name_table_[index] = name;
     }
 
+    inline size_t get_atom_index(const std::string &name)
+    {
+	auto it = atom_name_to_index_table_.find(name);
+	if (it == atom_name_to_index_table_.end()) {
+	    return 0;
+	}
+	return it->second;
+    }
+
     inline void clear_atom_index(const std::string &name, size_t index)
     {
 	atom_name_to_index_table_.erase(name);

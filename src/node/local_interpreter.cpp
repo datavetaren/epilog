@@ -1493,14 +1493,14 @@ bool me_builtins::global_impl(interpreter_base &interp0, size_t arity, term args
 	return false;
     }
 
-    g.stop();
-
     // assert(g.is_clean());
 
     if (silent) {
+	g.stop();
 	return true;
     } else {
 	term t1 = ser.read(buf);
+	g.stop();
 	return interp.unify(t, t1);
     }
 }

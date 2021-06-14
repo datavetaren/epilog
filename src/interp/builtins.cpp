@@ -1123,6 +1123,8 @@ bool builtins::findall_3_meta(interpreter_base &interp, const meta_reason_t &rea
 
 bool builtins::freeze_2(interpreter_base &interp, size_t arity, common::term args[])
 {
+    interp.update_pr();
+    
     term v = args[0];
     if (!v.tag().is_ref()) {
         interp.set_p(code_point(args[1]));
@@ -1410,9 +1412,9 @@ bool builtins::defrost_3(interpreter_base &interp, size_t arity, common::term ar
     size_t i = 0;
     size_t closure_arity = interp.functor(closure_term).arity();
     
-    while (values_term != interpreter_base::EMPTY_LIST && i < closure_arity) {
+    while (values_term != interpreter_base::EMPTY_LIST && i+3 < closure_arity) {
         term next_arg = interp.arg(values_term, 0);
-	term closure_arg = interp.arg(closure_term, i);
+	term closure_arg = interp.arg(closure_term, i+3);
 
 	if (!interp.is_ground(closure_arg)) {
 	    if (!interp.unify(next_arg, closure_arg)) {
@@ -1425,6 +1427,15 @@ bool builtins::defrost_3(interpreter_base &interp, size_t arity, common::term ar
     }
     
     return true;
+}
+
+bool builtins::caller_3(interpreter_base &interp, size_t arity, common::term args []) {
+    interp.update_pr();
+    const qname &qn = interp.get_pr();
+    return interp.unify(args[0], qn.first.to_atom()) &&
+	   interp.unify(args[1], qn.second.to_atom()) &&
+	   interp.unify(args[2], int_cell(static_cast<int64_t>(
+					       qn.second.arity())));
 }
 
 bool builtins::password_2(interpreter_base &interp, size_t arity, common::term args[])
@@ -1742,8 +1753,8 @@ void builtins::load(interpreter_base &interp) {
     
     // Profiling
     i.load_builtin(con_cell("profile", 0), &builtins::profile_0);
-    //    i.load_builtin(i.functor("debug_on", 0), &builtins::debug_on_0);
-    //    i.load_builtin(i.functor("debug_off", 0), &builtins::debug_off_0);
+    i.load_builtin(i.functor("debug_on", 0), &builtins::debug_on_0);
+    i.load_builtin(i.functor("debug_off", 0), &builtins::debug_off_0);
 
     // Simple
     i.load_builtin(con_cell("true",0), &builtins::true_0);
@@ -1820,6 +1831,7 @@ void builtins::load(interpreter_base &interp) {
     i.load_builtin(con_cell("frozen",2), builtin(&builtins::frozen_2));
     i.load_builtin(con_cell("frozenk",3), builtin(&builtins::frozenk_3));
     i.load_builtin(con_cell("defrost",3), builtin(&builtins::defrost_3));
+    i.load_builtin(con_cell("caller", 3), builtin(&builtins::caller_3));
     i.load_builtin(i.functor("password",1), builtin(&builtins::password_2));
     i.load_builtin(i.functor("password",2), builtin(&builtins::password_2));
     i.load_builtin(con_cell("sleep",1), builtin(&builtins::sleep_1));

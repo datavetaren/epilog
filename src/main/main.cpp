@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 	pow_mode = POW_NONE;
     } else if (pow_mode_opt == "simple") {
 	pow_mode = POW_SIMPLE;
-    } else if (pow_mode_opt == "normal") {
+    } else if (pow_mode_opt == "normal" || pow_mode_opt.empty()) {
 	pow_mode = POW_NORMAL;
     } else {
 	std::cout << "pow_mode must be 'none', 'simple' or 'normal'" << std::endl;

@@ -455,4 +455,35 @@ void wam_interpreter::load_code(wam_interim_code &instrs)
     }
 }
 
+qname wam_interpreter::get_caller_predicate(interpreter_base *interp) 
+{
+    static con_cell FREEZE = con_cell("$freeze",0);
+    auto wami = reinterpret_cast<wam_interpreter *>(interp);
+    qname qn;
+    code_point cp = wami->p();
+    if (cp.has_wam_code()) {
+	qn = wami->get_wam_predicate(wami->to_code_addr(cp.wam_code()));
+    } else {
+	qn = wami->get_pr();
+    }
+    environment_kind_t k = wami->e_kind();
+    environment_base_t *e = wami->e0();
+    cp = wami->cp();
+    while (qn.first == FREEZE) {
+	switch (k) {
+	case ENV_NAIVE:
+	    qn = reinterpret_cast<environment_naive_t *>(e)->pr; break;
+	case ENV_WAM:
+	    qn = wami->get_wam_predicate(wami->to_code_addr(cp.wam_code()));
+	    cp = reinterpret_cast<environment_base_t *>(e)->cp;
+	    break;
+	case ENV_FROZEN:
+	    qn = reinterpret_cast<environment_frozen_t *>(e)->pr; break;
+	}
+	k = e->ce.kind();
+	e = e->ce.ce0();
+    }
+    return qn;
+}
+
 }}

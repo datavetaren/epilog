@@ -284,6 +284,7 @@ private:
     size_t next_atom_id_;
     size_t start_next_atom_id_;
     std::vector<std::pair<size_t, std::string> > new_atoms_;
+    std::unordered_map<std::string, size_t> new_atom_indices_;
 
     size_t next_predicate_id_;
     size_t start_next_predicate_id_;
