@@ -19,10 +19,10 @@ AROUT := -cr
 DBG :=
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
-   DBG := gdb -batch -return-child-result -ex run --args timeout 600s
+   DBG := gdb -batch -return-child-result -ex run --args timeout 1000s
 endif
 ifeq ($(UNAME),Darwin)
-   DBG := gtimeout 600s
+   DBG := gtimeout 1000s
 endif
 
 GCCLIBPATH := $(shell g++ -Xlinker -v  2>&1 |sed -n 's/^[[:space:]]*\(\/.*\)/\1/p')
