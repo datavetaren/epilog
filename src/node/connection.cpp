@@ -591,14 +591,11 @@ void in_connection::process_execution(const term cmd, bool in_query, bool silent
 	    }
 	    auto qr = cmd;
 
-	    bool r = in_query ? session_->next() : session_->execute(qr);
+	    bool r = in_query ? session_->next() : session_->execute(qr, silent);
 	    term standard_out = e.EMPTY_LIST;
 	    if (!session_->get_text_out().empty()) {
 		standard_out = e.string_to_list(session_->get_text_out());
 		session_->reset_text_out();
-	    }
-	    if (silent) {
-		session_->stop();
 	    }
 	    auto last_cost = static_cast<int64_t>(session_->last_cost());
 	    if (!r) {

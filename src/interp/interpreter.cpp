@@ -19,7 +19,6 @@ void interpreter::reset()
     wam_interpreter::reset();
     query_vars_ = nullptr;
     num_instances_ = 0;
-    new_instance_created_.clear();
 }
 
 void interpreter::total_reset()
@@ -198,16 +197,19 @@ bool interpreter::debug_predicate_1(interpreter_base &interp, size_t arity, comm
 }
 
 	
-bool interpreter::execute(const term query)
+bool interpreter::execute(const term query, bool silent)
 {
     using namespace epilog::common;
+
+    bool do_new_instance = false;
 
     while (num_instances() > 0 && !has_more()) {
 	delete_instance();
     }
-    
+
     if (has_more()) {
 	new_instance();
+	do_new_instance = true;
     } else {
         // Overriding last instance
         if (!is_retain_state_between_queries()) {
@@ -254,17 +256,16 @@ bool interpreter::execute(const term query)
 
     set_qr(query);
 
+    if (silent && do_new_instance) {
+	stop();
+    }
+
     return b;
 }
 
 void interpreter::stop()
 {
-    bool b = false;
-    if (!new_instance_created_.empty()) {
-	new_instance_created_.back();
-	new_instance_created_.pop_back();
-    }
-    if (b) {
+    if (num_instances() > 0) {
 	delete_instance();
     } else {
 	clear_trail();
@@ -1012,10 +1013,10 @@ remote_return_t interpreter::execute_at(common::term query,
 	d->set_timeout_millis(timeout);
 	add_delayed(d);
 	local_service_.add(
-	   [d, query, &query_src, interp, this](){
+	   [d, query, mode, &query_src, interp, this](){
 	       try {
 		   term copy_query = interp->copy(query, query_src);
-		   bool ok = interp->execute(copy_query);
+		   bool ok = interp->execute(copy_query, mode == MODE_SILENT);
 		   if (ok) {
 		       d->result = interp->get_result_term();
 		       d->result_src = interp;
@@ -1030,7 +1031,7 @@ remote_return_t interpreter::execute_at(common::term query,
     } else {
 	term copy_query = interp->copy(query, query_src);
 	try {
-	    bool ok = interp->execute(copy_query);
+	    bool ok = interp->execute(copy_query, mode == MODE_SILENT);
 	    if (!ok) {
 		return remote_return_t();
 	    }

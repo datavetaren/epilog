@@ -33,7 +33,7 @@ public:
     // Return a dotted pair with the query and its vars.
     common::term query_closure();
 
-    bool execute(const common::term query);
+    bool execute(const common::term query, bool silent);
     bool next();
     void stop();
     bool at_end();

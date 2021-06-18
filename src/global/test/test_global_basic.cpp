@@ -134,7 +134,7 @@ static void recheck_frozen_closures(std::vector<size_t> &all_frozen_closures0)
     for (size_t i = 0; i < all_frozen_closures0.size(); i += 100) {
 	auto check_closures_cmd = g.interp().parse("frozenk(" + boost::lexical_cast<std::string>(last_addr) + ", 100, X).");
 	std::cout << "COMMAND: " << g.interp().to_string(check_closures_cmd) << std::endl;
-	g.interp().execute(check_closures_cmd);
+	g.interp().execute(check_closures_cmd, false);
 	auto lst = g.interp().get_result_term("X");
 	size_t j = 0;
 	// std::cout << "List length: " << g.interp().list_length(lst) << std::endl;
@@ -175,13 +175,13 @@ void setup_frozen_closures(std::vector<size_t> &all_frozen_closures)
 
     auto myreward_cmd = g.interp().parse("ec:privkey(X), ec:pubkey(X,Y), ec:address(Y,Z), reward(Z).");
     for (size_t i = 0; i < NUM_REWARDS; i++) {
-	g.interp().execute(myreward_cmd);
+	g.interp().execute(myreward_cmd, false);
     }
 
     size_t last_addr = 0;
     for (size_t i = 0; i < NUM_REWARDS; i += 100) {
 	auto check_closures_cmd = g.interp().parse("frozenk(" + boost::lexical_cast<std::string>(last_addr) + ", 100, X).");
-	g.interp().execute(check_closures_cmd);
+	g.interp().execute(check_closures_cmd, false);
 	auto lst = g.interp().get_result_term("X");
 	while (g.interp().is_dotted_pair(lst)) {
 	    auto addr_term = g.interp().arg(lst, 0);

@@ -24,7 +24,7 @@ term in_session_state::query_closure()
     return interp_.new_dotted_pair(interp_.query(), interp_.query_var_list());
 }
 
-bool in_session_state::execute(const term query)
+bool in_session_state::execute(const term query, bool silent)
 {
     using namespace epilog::interp;
 
@@ -33,7 +33,7 @@ bool in_session_state::execute(const term query)
     interp_.set_maximum_cost(available_funds_);
     bool r = false;
     try {
-	r = interp_.execute(query);
+	r = interp_.execute(query, silent);
 	interp_.flush_standard_output();
 	auto cost = interp_.accumulated_cost();
 	if (cost > available_funds_) {

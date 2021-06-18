@@ -68,7 +68,7 @@ static void eval_check_1(const std::string &program,
     term qr = interp.parse(query);
     std::cout << "?- " << interp.to_string(qr) << ".\n";
 
-    interp.execute(qr);
+    interp.execute(qr, false);
 
     std::string result = interp.to_string(qr);
 
@@ -133,7 +133,7 @@ static void eval_check_n(const std::string &program,
 
     std::string result;
 
-    bool ok = interp.execute(qr);
+    bool ok = interp.execute(qr, false);
     if (!ok) {
 	std::cout << "Execution failed of query." << std::endl;
 	assert(ok);
@@ -197,7 +197,7 @@ static void test_interpreter_serialize()
     term qr = interp.parse(query);
     std::cout << "?- " << interp.to_string(qr) << ".\n";
 
-    interp.execute(qr);
+    interp.execute(qr, false);
 
     std::string result = interp.to_string(qr);
 
@@ -260,7 +260,7 @@ static void test_interpreter_multi_instance()
     term query1 = interp.parse("member(X, [1,2,3,4]).");
     term query2 = interp.parse("member(Y, [a,b,c,d]).");
 
-    assert(interp.execute(query1));
+    assert(interp.execute(query1, false));
     std::cout << "First answer: " << interp.get_result(false) << std::endl;
     
     expect_check(interp.get_result(false));
@@ -269,7 +269,7 @@ static void test_interpreter_multi_instance()
 	//
 	// Start another instance of interpreter and apply query2
 	//
-	assert(interp.execute(query2));
+	assert(interp.execute(query2, false));
 	std::cout << "    [Nested] First answer: " << interp.get_result(false) << std::endl;
 	expect_check(interp.get_result(false));
 	while (interp.has_more()) {
@@ -325,7 +325,7 @@ static void test_interpreter_freeze_preprocess()
     term qr = interp.parse(query);
     std::cout << "?- " << interp.to_string(qr) << ".\n";
 
-    interp.execute(qr);
+    interp.execute(qr, false);
 
     std::string result = interp.to_string(qr);
 

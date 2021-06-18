@@ -173,7 +173,7 @@ static inline bool test_run_once(interpreter &interp,
     bool r = false;
     try {
 	if (iteration == 0) {
-	    r = interp.execute(query);
+	    r = interp.execute(query, false);
 	} else {
 	    r = interp.next();
 	}

@@ -231,7 +231,7 @@ term interactive_prompt::parse(const std::string &str)
 void interactive_prompt::execute(term t)
 {
     if (meta_) {
-	if (!meta_->execute(t)) {
+	if (!meta_->execute(t, false)) {
 	    add_text_output("false.");
 	} else {
 	    if (has_more()) {

@@ -226,7 +226,7 @@ remote_return_t meta_interpreter::execute_at_wallet(term query, term else_do, in
     
     term query_term = wi.copy(query, env());
     try {
-	if (!wi.execute(query_term)) {
+	if (!w->execute(query_term)) {
 	    return remote_return_t();
 	}
     } catch (...) {

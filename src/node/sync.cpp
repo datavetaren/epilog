@@ -161,7 +161,7 @@ void sync::run()
     interp_.session().set_available_funds( max );
 
     try {
-	interp_.session().execute(setup_qr);	
+	interp_.session().execute(setup_qr, true);
     } catch (std::runtime_error &ex) {
 	std::cout << "sync::run(): ERROR: " << ex.what() << std::endl;
 	stop_ = true;
@@ -172,7 +172,7 @@ void sync::run()
     while (!stop_) {
 	interp_.session().set_available_funds( max );
 	try {
-	    interp_.session().execute(run_qr);
+	    interp_.session().execute(run_qr, true);
 	} catch (std::runtime_error &ex) {
 	    std::cout << "sync::run(): ERROR: " << ex.what() << std::endl;
 	    stop_ = true;

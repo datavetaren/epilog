@@ -613,7 +613,7 @@ namespace epilog { namespace interp {
 	    auto &interp1 = reinterpret_cast<interpreter &>(interp);
 	    interp1.new_instance();
 	    auto hb = interp.get_register_hb();
-	    bool r = interp1.execute(arg_cut);
+	    bool r = interp1.execute(arg_cut, false);
 	    if (r) {
 		str += interp1.get_result();
 	    }

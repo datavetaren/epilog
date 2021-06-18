@@ -312,7 +312,7 @@ public:
     size_t num_instances() const { return num_instances_; }
     void delete_instance();
 
-    bool execute(const term query);
+    bool execute(const term query, bool silent);
     bool next();
     bool cont();
     void fail();
@@ -453,7 +453,6 @@ private:
     std::vector<binding> *query_vars_;
     size_t num_instances_;
     std::vector<size_t> last_hb_;
-    std::vector<bool> new_instance_created_;
 
     friend struct new_instance_context;
     friend class test_wam_interpreter;
@@ -476,7 +475,7 @@ template<typename Pre, typename Post> void standard_clause_processing<Pre,Post>:
       
         pre_(clause_copy);
         auto body = interp_.arg(clause_copy, 0);
-	interp_.execute(body);
+	interp_.execute(body, false);
 	interp_.reset();
         post_(clause_copy);	
     }

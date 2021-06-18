@@ -415,7 +415,7 @@ void terminal::node_pulse()
 				   {ME, e.functor("check_mail",0)})});
     bool old = is_result_to_text();
     set_result_to_text(false);
-    execute(query_pulse,false);
+    execute(query_pulse,true);
     set_result_to_text(old);
 }
 

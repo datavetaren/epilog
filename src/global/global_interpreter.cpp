@@ -241,7 +241,7 @@ bool global_interpreter::execute_goal(term goal) {
     //
     preprocess_hashes(goal);
 
-    bool r = execute(goal);
+    bool r = execute(goal, false);
 
     return r;
 }

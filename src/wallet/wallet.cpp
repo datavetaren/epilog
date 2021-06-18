@@ -184,7 +184,7 @@ std::string wallet::execute(const std::string &cmd)
 bool wallet::execute(term query)
 {
     try {
-        bool r = interp_.execute(query);
+        bool r = interp_.execute(query, false);
 	check_dirty();
         return r;
     } catch (std::runtime_error &ex) {
