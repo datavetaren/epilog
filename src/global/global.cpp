@@ -813,7 +813,7 @@ bool global::wrap_fees(term_env &src, term &goals, term fee_coin, term to_add) {
     bool r = execute_goal(dst_goal);
 
     std::unordered_set<ref_cell> coins;
-    for (auto v : interp_->singleton_vars_in_goal()) {
+    for (auto v : interp_->p_vars_in_goal()) {
 	auto dv = interp_->deref(v);
 	if (coin::is_native_coin(*interp_, dv) && !coin::is_coin_spent(*interp_, dv)) {
 	    coins.insert(v);

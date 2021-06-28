@@ -98,6 +98,11 @@ public:
 	}
     }
 
+    inline uint64_t accumulated_cost() const {
+	check_interp();
+	return interp_->accumulated_cost();
+    }
+
     inline bool execute_goal(term t) {
 	check_interp();
         return interp_->execute_goal(t);

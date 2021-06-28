@@ -116,6 +116,7 @@ nth0(N, [_|Xs], X) :- N > 0, N1 is N - 1, nth0(N1,Xs,X).
     }
     load_builtin(con_cell("consult", 1), consult_1);
     load_builtin(con_cell("compile", 0), compile_0);
+    load_builtin(con_cell("disasm",1), disasm_1);
     load_builtin(con_cell("@",2), operator_at_2);
     load_builtin(con_cell("@-",2), operator_at_silent_2);
     load_builtin(con_cell("@=",2), operator_at_parallel_2);
@@ -848,6 +849,17 @@ bool interpreter::compile_0(interpreter_base &interp0, size_t arity, common::ter
 {
     auto &interp = reinterpret_cast<interpreter &>(interp0);
     interp.compile();
+    return true;
+}
+
+bool interpreter::disasm_1(interpreter_base &interp0, size_t arity, common::term args[]) {
+    auto &interp = reinterpret_cast<interpreter &>(interp0);
+    qname qn = builtins::check_predicate(interp, "disasm/1", args[0]);
+    auto &cp = interp.get_code(qn);
+    if (!cp.has_wam_code()) {
+	return false;
+    }
+    interp.print_code(std::cout, qn);
     return true;
 }
 

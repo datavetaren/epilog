@@ -1207,7 +1207,9 @@ bool wam_compiler::has_cut(wam_interim_code &instrs)
     for (auto instr : instrs) {
 	if (instr->type() == CUT) {
 	    auto *cut_instr = reinterpret_cast<wam_instruction<CUT> *>(instr);
-	    return cut_instr->yn() == 0;
+	    if (cut_instr->yn() == 0) {
+		return true;
+	    }
 	}
     }
     return false;
@@ -1802,6 +1804,7 @@ void wam_compiler::compile_clause(const managed_clause &m_clause,
     seq.push_back(wam_instruction<PROCEED>());
 
     peephole_opt_execute(seq);
+
     if (has_cut(seq)) {
 	allocate_cut(seq);
     }

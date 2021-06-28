@@ -33,6 +33,12 @@ public:
 	interpreter_exception(msg) { }
 };
 
+class global_hidden_var_exception : public interp::interpreter_exception {
+public:
+    global_hidden_var_exception(const std::string &msg) :
+	interpreter_exception(msg) { }
+};
+
 class global;
 class builtins;
 
@@ -115,6 +121,9 @@ public:
     static void setup_consensus_lib(interpreter &interp);
   
     void preprocess_hashes(term t);
+    void hidden_vars(term t, std::unordered_map<term, std::unordered_set<term> > &vars);
+    void check_vars(term t, std::unordered_map<term, std::unordered_set<term> > &vars);
+    void check_vars_cross_ref(term t, std::unordered_map<term, std::unordered_set<term> > &vars);
     bool execute_goal(term t);
     bool execute_goal(buffer_t &serialized, bool silent);
     void execute_cut();
@@ -209,8 +218,8 @@ private:
 
     common::heap_block * db_get_heap_block(size_t block_index);
 
-    inline std::unordered_set<common::ref_cell> & singleton_vars_in_goal() {
-	return singleton_vars_in_goal_;
+    inline std::unordered_set<common::ref_cell> & p_vars_in_goal() {
+	return p_vars_in_goal_;
     }
     
     inline common::heap_block & get_heap_block(size_t block_index)
@@ -289,7 +298,7 @@ private:
     size_t next_predicate_id_;
     size_t start_next_predicate_id_;
 
-    std::unordered_set<common::ref_cell> singleton_vars_in_goal_;
+    std::unordered_set<common::ref_cell> p_vars_in_goal_;
 };
 
 }}

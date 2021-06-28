@@ -909,6 +909,19 @@ public:
       return vars;
   }
 
+  std::unordered_set<term> vars_of(term t0) {
+      std::unordered_set<term> vars;
+      // Record all vars for this query
+      std::for_each( begin(t0),
+		     end(t0),
+		     [&vars](const term t) {
+		         if (t.tag().is_ref()) {
+			     vars.insert(t);
+			 }
+		     } );
+      return vars;
+  }
+
   void prettify_var_names(const term t0, std::vector<ref_cell> &touched)
   {
       std::map<ref_cell, size_t> count_occurrences;

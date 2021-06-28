@@ -25,7 +25,7 @@ pkey2(58'L15fZcjA6ABYayBAQRPvTEZMYQ4WZ19y2fCzdZ3FNjny9aCNB7SZ).
    pkey2(S2),
    ec:pubkey(S2,PubKey2), ec:address(PubKey2,NewAddress),
    Script = (Sign = MySignature,
-	     (p(Hash) :- frozenk(-1,1,[H]),
+	     (p(Hash,Sign) :- frozenk(-1,1,[H]),
 	                 defrost(H, Closure, [Hash, args(Sign,PubKey,Address)]),
 			 arg(7, Closure, MyCoin),
 			 tx(MyCoin, Hash0, tx1, args(_,_,NewAddress), _))),
@@ -33,5 +33,6 @@ pkey2(58'L15fZcjA6ABYayBAQRPvTEZMYQ4WZ19y2fCzdZ3FNjny9aCNB7SZ).
    ec:hash(ScriptBody, ScriptHash),
    ec:sign(S, ScriptHash, MySignature),
    ec:validate(PubKey, ScriptHash, MySignature),
+   write(Script), nl,
    me:commit(Script).
 % Expect: true/*

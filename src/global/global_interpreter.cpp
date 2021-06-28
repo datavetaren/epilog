@@ -171,8 +171,6 @@ reward(PubKeyAddr) :-
 }
 
 void global_interpreter::preprocess_hashes(term t) {
-    static const con_cell P("p", 1);
-
     static const common::con_cell op_comma(",", 2);
     static const common::con_cell op_semi(";", 2);
     static const common::con_cell op_imply("->", 2);
@@ -183,56 +181,182 @@ void global_interpreter::preprocess_hashes(term t) {
     }
     
     auto f = functor(t);
-
     // Scan for :- and subsitute the hash for body
     if (f == op_clause) {
         auto head = arg(t, 0);
-	if (head.tag() == tag_t::STR && functor(head) == P) {
+	if (head.tag() == tag_t::STR) {
+	    // Name must be 'p', arity doesn't matter
+	    if (atom_name(functor(head)) != "p") {
+		return;
+	    }
 	    auto hash_var = arg(head, 0);
-	    if (hash_var.tag().is_ref()) {
-	        uint8_t hash[ec::builtins::RAW_HASH_SIZE];
-	        if (!ec::builtins::get_hashed_2_term(*this, t, hash)) {
-		    return;
-	        }
-		term hash_term = new_big(ec::builtins::RAW_HASH_SIZE*8);
-		set_big(hash_term, hash, ec::builtins::RAW_HASH_SIZE);
-		if (!unify(hash_var, hash_term)) {
+	    if (!hash_var.tag().is_ref()) {
+		return;
+	    }
+	    uint8_t hash[ec::builtins::RAW_HASH_SIZE];
+	    // Important that the hash covers the entire predicate clause
+	    // p(X, ...) :- Body, as the user control what variables to
+	    // expose in Body (typically signature variables and fees)
+	    if (!ec::builtins::get_hashed_2_term(*this, t, hash)) {
+		return;
+	    }
+	    term hash_term = new_big(ec::builtins::RAW_HASH_SIZE*8);
+	    set_big(hash_term, hash, ec::builtins::RAW_HASH_SIZE);
+	    if (!unify(hash_var, hash_term)) {
+		return;
+	    }
+	    std::for_each(begin(head), end(head),
+			  [this](term t) {
+			      if (t.tag().is_ref()) {
+				  ref_cell &v = reinterpret_cast<ref_cell &>(t);
+				  p_vars_in_goal_.insert(v);
+			      }
+			  });
+	}
+	return;
+    }
+
+    if (f == op_comma || f == op_semi || f == op_imply) {
+        preprocess_hashes(arg(t, 0));
+	preprocess_hashes(arg(t, 1));
+    }
+}
+
+//
+// A goal is typically a transaction of the form:
+// (Signature = <constant>, p(X, Signature, Fee) :- ... Body ...)
+//
+// The variables inside Body that do not occur in head of 'p' are considered
+// hidden and should not be referenced outside 'p'.
+//
+// We keep track of what 'p' a hidden var is referenced from.
+// var => {... of p's ... }  (if multiple p's then that an indication of
+// cross referencing a hidden variable between p's which is not allowed)
+//
+void global_interpreter::hidden_vars(term t, std::unordered_map<term, std::unordered_set<term> > &vars)
+{
+    static const common::con_cell op_comma(",", 2);
+    static const common::con_cell op_semi(";", 2);
+    static const common::con_cell op_imply("->", 2);
+    static const common::con_cell op_clause(":-", 2);
+
+    if (t.tag() != common::tag_t::STR) {
+        return;
+    }
+    
+    auto f = functor(t);
+    // Scan for :- and subsitute the hash for body
+    if (f == op_clause) {
+        auto head = arg(t, 0);
+	if (head.tag() == tag_t::STR) {
+	    // Name must be 'p', arity doesn't matter
+	    auto h = functor(head);
+	    if (atom_name(h) != "p") {
+		return;
+	    }
+	    auto n = h.arity();
+	    if (n < 1) {
+		return;
+	    }
+	    auto body = arg(t, 1);
+	    auto head_vars = vars_of(head);
+	    // The hash (always first) var is also hidden despite
+	    // it is in the head.
+	    head_vars.erase(arg(head,0));
+
+	    // For all variables in body that does not occur in head = hidden var
+	    std::for_each( begin(body),
+			   end(body),
+			   [&vars,&head_vars,t](const term v) {
+			       if (v.tag().is_ref()) {
+				   if (!head_vars.count(v)) {
+				       vars[v].insert(t);
+				   }
+			       }
+			   });
+	}
+	return;
+    }
+
+    if (f == op_comma || f == op_semi || f == op_imply) {
+        hidden_vars(arg(t, 0), vars);
+	hidden_vars(arg(t, 1), vars);
+	return;
+    }
+}
+
+void global_interpreter::check_vars_cross_ref(term t, std::unordered_map<term, std::unordered_set<term > > &all_hidden) {
+    for (auto &v : all_hidden) {
+	if (v.second.size() != 1) {
+	    std::stringstream ss;
+	    ss << "Attempt to cross reference hidden variable " << to_string(t);
+	    throw global_hidden_var_exception(ss.str());
+	}
+    }
+}
+
+// Make sure hidden vars in each p(...) :- Body are hidden, i.e.
+// no other goal/term is allowed to access them.
+// This method does not the cross reference checking between p's; there's
+// a separate method for that (check_vars_cross_ref)
+void global_interpreter::check_vars(term t, std::unordered_map<term, std::unordered_set<term > > &all_hidden) {
+    static const common::con_cell op_comma(",", 2);
+    static const common::con_cell op_semi(";", 2);
+    static const common::con_cell op_imply("->", 2);
+    static const common::con_cell op_clause(":-", 2);
+
+    if (t.tag() != common::tag_t::STR) {
+        return;
+    }
+
+    auto f = functor(t);
+
+    // Skip checking for 'p' itself (it's already been checked
+    // via check_vars_cross_ref)
+    if (f == op_clause) {
+        auto head = arg(t, 0);
+	if (head.tag() == tag_t::STR) {
+	    auto h = functor(head);
+	    if (atom_name(h) == "p") {
+		auto n = h.arity();
+		if (n >= 1) {
 		    return;
 		}
 	    }
 	}
     }
 
-    if (f == op_comma || f == op_semi || f == op_imply || f == op_clause) {
-        preprocess_hashes(arg(t, 0));
-	preprocess_hashes(arg(t, 1));
+    if (f == op_comma || f == op_semi || f == op_imply) {
+        check_vars(arg(t, 0), all_hidden);
+	check_vars(arg(t, 1), all_hidden);
+	return;
     }
+
+    std::for_each( begin(t),
+		   end(t),
+		   [this,&all_hidden](const term v) {
+		      if (v.tag().is_ref()) {
+			  auto it = all_hidden.find(v);
+			  if (it != all_hidden.end()) {
+			      if (!it->second.empty()) {
+				  std::stringstream ss;
+				  ss << "Attempt to reference hidden variable " << to_string(v);
+				  throw global_hidden_var_exception(ss.str());
+			      }
+			  }
+		      }
+		   } );
 }
 	
 bool global_interpreter::execute_goal(term goal) {
+    std::unordered_map<term, std::unordered_set<term> > all_hidden;
+    hidden_vars(goal, all_hidden);
 
-    // Find all singleton vars in goal. Store these in
-    // singleton_vars_in_goal_ that is then used in the reward/2
-    // builtin (which also consumes unspent coins.)
-    std::unordered_set<ref_cell> seen_vars;
-    singleton_vars_in_goal_.clear();
-    std::for_each( begin(goal),
-		   end(goal),
-	   [&](term t) {
-	       if (t.tag().is_ref()) {
-	           ref_cell r = reinterpret_cast<ref_cell &>(t).unwatch();
-		   bool seen = seen_vars.count(r);
-		   if (seen) {
-		       singleton_vars_in_goal_.erase(r);
-		   } else {
-		       seen_vars.insert(r);
-		       singleton_vars_in_goal_.insert(r);
-		   }
-	       } } );
+    check_vars_cross_ref(goal, all_hidden);
+    check_vars(goal, all_hidden);
 
-    
     // Check if term is a clause:
-    // p(X) :- Body
+    // p(X, ...) :- Body
     // Then we compute the hash of Body (with X unbound) and bind X to the
     // hashed value. Then we apply commit on Body. This enables us to solve
     // the malleability problem; no one can tamper with the transaction
@@ -284,7 +408,7 @@ void global_interpreter::execute_cut() {
 
 int64_t global_interpreter::available_fees() {
     int64_t fees = 0;
-    for (auto r : singleton_vars_in_goal()) {
+    for (auto r : p_vars_in_goal()) {
 	auto dr = deref(r);
 	if (coin::is_native_coin(*this, dr) && !coin::is_coin_spent(*this, dr)) {
 	    fees += coin::coin_value(*this, dr);
@@ -350,8 +474,11 @@ bool global_builtins::operator_clause_2(interpreter_base &interp0, size_t arity,
     term head = args[0];
     term body = args[1];
 
-    if (head.tag() != tag_t::STR || interp.functor(head) != con_cell("p",1)) {
-        throw interpreter_exception_wrong_arg_type(":-/2: Head of clause must be 'p(Hash)'; was " + interp.to_string(head));
+    if (head.tag() != tag_t::STR) {
+	auto p = interp.functor(head);
+	if (interp.atom_name(p) != "p" || p.arity() < 1) {
+	    throw interpreter_exception_wrong_arg_type(":-/2: Head of clause must be 'p(Hash,...)'; was " + interp.to_string(head));
+	}
     }
 
     // Setup new environment and where to continue

@@ -438,7 +438,6 @@ bool me_builtins::send_2(interpreter_base &interp0, size_t arity, term args[] )
 bool me_builtins::initial_funds_1(interpreter_base &interp0, size_t arity, term args[] )
 {
     auto &interp = to_local(interp0);
-    interp0.set_debug(true);
     term arg = args[0];
     if (arg.tag() == tag_t::INT) {
 	uint64_t val = static_cast<uint64_t>(reinterpret_cast<int_cell &>(arg).value());

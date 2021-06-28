@@ -416,7 +416,8 @@ protected:
 private:
     static bool compile_0(interpreter_base &interp, size_t arity, common::term args[]);    
     static bool consult_1(interpreter_base &interp, size_t arity, common::term args[]);
-
+    static bool disasm_1(interpreter_base &interp, size_t arity, common::term args[]);
+    
 public:
     static std::tuple<common::term, common::term, size_t> deconstruct_where(interpreter_base &interp, common::term where);
     static bool operator_at_impl(interpreter_base &interp, size_t arity, common::term args[], const std::string &name, remote_execute_mode mode);

@@ -208,32 +208,33 @@ spend_many(Addresses, Amounts, Fee, FinalTx, ConsumedUtxos) :-
          AllAmounts = [Fee,Rest|Amounts],
          % --- Note that SendCoins will be unified with the above
          append(Commands1,[csplit(SumCoin, AllAmounts,
-                                  [_Fee,RestCoin|SendCoins]),
+                                  [FeeCoin,RestCoin|SendCoins]),
                            tx(RestCoin, _, tx1, args(_,_,ChangeAddr),_)|Txs],
 
                 Commands2)
        ; AllAmounts = [Fee|Amounts],
-         append(Commands1, [csplit(SumCoin, AllAmounts, [_Fee|SendCoins])|Txs],
+         append(Commands1, [csplit(SumCoin,AllAmounts,[FeeCoin|SendCoins])|Txs],
                 Commands2)
     ),
     % --- At this point Commands2 are all the combined instructions we need
     % --- Convert list to commas
     '$list_to_commas'(Commands2, Command),
     % --- The combined command as a self hash predicate (i.e. the script)
-    Script = (p(Hash) :- Command),
+    '$collect_sign_vars'(Signs, SignVars),
+    Script = (p(Hash, SignVars, FeeCoin) :- Command),
     % --- Compute the hash for this script
     ec:hash(Script, HashValue),
     % --- Get the required signatures to "run" this script
     % --- (without them, the commitment would fail to the global sate.)
     % --- One signature per opened UTXO
-    '$signatures'(Signs, HashValue, SignAssigns),
+    '$signatures'(Signs, SignVars, HashValue, SignAssigns),
     % --- Prepend these signature statements to the script
     append(SignAssigns, [Script], Commands3),
     % --- Commands3 is the final instruction list, convert it to commas
     '$list_to_commas'(Commands3, FinalTx),
     % --- Return list of consumed utxos (so the user can remove them from
     % --- his wallet.)
-    findall(H, member(utxo(_,H), ChosenUtxos), ConsumedUtxos).
+    findall(H, member(utxo(_,H), ChosenUtxos), ConsumedUtxos), !.
 
 retract_utxos([]).
 retract_utxos([HeapAddr|HeapAddrs]) :-
@@ -244,13 +245,18 @@ retract_utxos([HeapAddr|HeapAddrs]) :-
 '$list_to_commas'([X|Xs], C) :-
     C = (X, Y), '$list_to_commas'(Xs, Y).
 
-'$signatures'([], _, []).
-'$signatures'([sign(tx1, SignVar, PubKeyAddress)|Signs], HashValue,
+'$signatures'([], [], _, []).
+'$signatures'([sign(tx1, SignVar, PubKeyAddress)|Signs],
+             [SignVar|SignVars], HashValue,
              [(SignVar = Signature)|Commands]) :-
     cache:valid_address(PubKeyAddress, Count),
     wallet:privkey(Count, PrivKey),
     ec:sign(PrivKey, HashValue, Signature),
-    '$signatures'(Signs, HashValue, Commands).
+    '$signatures'(Signs, SignVars, HashValue, Commands).
+
+'$collect_sign_vars'([], []).
+'$collect_sign_vars'([sign(_,SignVar,_)|Signs],[SignVar|SignVars]) :-
+    '$collect_sign_vars'(Signs,SignVars).
 
 '$open_utxos'([], _, [], [], []).
 '$open_utxos'([utxo(_,HeapAddress)|Utxos], Hash,
