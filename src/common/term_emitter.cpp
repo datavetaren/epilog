@@ -293,7 +293,8 @@ size_t term_emitter::get_precedence(cell c) const
     if (fc.tag() != tag_t::CON) {
 	return 0;
     }
-    auto p = ops_.prec(fc);
+    auto &cc = reinterpret_cast<con_cell &>(fc);
+    auto p = ops_.prec(cc);
     return p.precedence;
 }
 

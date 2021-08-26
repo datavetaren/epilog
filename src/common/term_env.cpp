@@ -116,6 +116,37 @@ bool term_utils::equal(term a, term b, uint64_t &cost)
     return true;
 }
 
+size_t term_utils::simple_hash(term t) const {
+    switch (t.tag()) {
+    case tag_t::CON:
+    case tag_t::INT:
+    case tag_t::REF:
+    case tag_t::RFW:
+	return t.raw_value();
+    case tag_t::BIG:
+	{
+	    big_cell b = reinterpret_cast<big_cell &>(t);
+	    size_t h = num_bits(b);
+	    auto big_end = end(b);
+	    size_t i = 0;
+	    // Use 4 bytes from bignum as hash
+	    for (auto big_it = begin(b); big_it != big_end && i < 4; ++big_it, i++) {
+		h <<= 8;
+		h += *big_it;
+	    }
+	    return h;
+	}
+    case tag_t::STR: {
+	    con_cell f = functor(t);
+	    return f.raw_value();
+        }
+	break;
+    default:
+        assert(false);
+	break;
+    }
+}
+    
 uint64_t term_utils::hash(term t)
 {
     size_t d = stack_size();
@@ -133,6 +164,19 @@ uint64_t term_utils::hash(term t)
 	case tag_t::REF:
 	case tag_t::RFW:	  
 	    h += t.raw_value();
+	    break;
+	case tag_t::BIG:
+	    {
+		big_cell b = reinterpret_cast<big_cell &>(t);
+		h += num_bits(b);
+		auto big_end = end(b);
+		size_t i = 0;
+		// Use 4 bytes from bignum as hash
+	        for (auto big_it = begin(b); big_it != big_end && i < 4; ++big_it, i++) {
+		    h <<= 8;
+		    h += *big_it;
+		}
+	    }
 	    break;
         case tag_t::STR: {
 	    con_cell f = functor(t);

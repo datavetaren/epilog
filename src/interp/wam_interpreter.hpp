@@ -984,6 +984,7 @@ private:
 	    if (b() != nullptr) {
 		set_b0(b()->b0);
 	    }
+	    fail_ = true;
 	    set_top_fail(true);
 	    if (is_debug()) {
 	        std::cout << "[WAM debug]: backtrack(): Top fail\n";
@@ -1072,7 +1073,7 @@ private:
 	    if (is_stack(ref)) {
 	        return deref_stack(ref);
 	    } else {
-	        return term_env::deref(t);
+	        return interpreter_base::deref(t);
 	    }
         } else {
 	    return t;
@@ -1318,9 +1319,7 @@ private:
 	  break;
   	  }
 	case common::tag_t::BIG: {
-	  uint64_t cost1;
-	  fail = !equal(c, t, cost1);
-	  add_accumulated_cost(cost1);
+	  fail = !equal(c, t);
 	  }
 	  break;
 	default:
@@ -1570,9 +1569,7 @@ private:
 		break;
 	      }
 	    case common::tag_t::BIG: {
-	        uint64_t cost1;
-		fail = !equal(c, t, cost1);
-		add_accumulated_cost(cost1);
+		fail = !equal(c, t);
 	        break;
 	      }
 	    default:
@@ -1716,7 +1713,7 @@ private:
     {
         size_t n = b()->arity;
 	for (size_t i = 0; i < n; i++) {
-  	    a(i) = b()->ai[i];
+  	    a(i) = b()->ai(i);
 	}
 	set_e(b()->ce);
 	set_cp(b()->cp);
@@ -1729,22 +1726,23 @@ private:
 
     void trust_choice_point()
     {
-        size_t n = b()->arity;
+	auto *ch = b();
+        size_t n = ch->arity;
 	for (size_t i = 0; i < n; i++) {
-	    a(i) = b()->ai[i];
+	    a(i) = ch->ai(i);
 	}
-	set_e(b()->ce);
-	set_cp(b()->cp);
-	unwind_trail(b()->tr, trail_size());
-	trim_trail(b()->tr);
-	trim_heap_safe(b()->h);
-        set_b(b()->b);
+	set_e(ch->ce);
+	set_cp(ch->cp);
+	unwind_trail(ch->tr, trail_size());
+	trim_trail(ch->tr);
+	trim_heap_safe(ch->h);
+        set_b(ch->b);
 	set_register_hb(b());
     }
 
     inline void try_me_else(code_point &L)
     {
-	allocate_choice_point(L);
+	allocate_choice_point(L, 0);
 	goto_next_instruction();
     }
 
@@ -1764,7 +1762,7 @@ private:
     {
         auto p1 = p();
 	next_instruction(p1);
-	allocate_choice_point(p1);
+	allocate_choice_point(p1, 0);
 	set_p(L);
     }
 
@@ -1852,7 +1850,7 @@ private:
     inline void neck_cut()
     {
         if (b() > b0()) {
-	    set_b(b0());
+	    cut_b(b0());
 	    set_register_hb(b());
 	    tidy_trail();
 	}
@@ -1870,9 +1868,10 @@ private:
 	auto yval = reinterpret_cast<common::int_cell &>(y(yn));
 	// I had to add volatile here to avoid a clang bug (with -O3).
         auto volatile b0 = reinterpret_cast<choice_point_t *>(to_stack(yval.value()));
+	set_b0(b0);
 	auto b1 = b();
 	if (b1 > b0) {
-	    set_b(b0);
+	    cut_b(b0);
 	    set_register_hb(b0);
 	    tidy_trail();
 	}

@@ -205,7 +205,7 @@ public:
 	    }
 	    return interp.unify(qr, r.result());
 	} else {
-	    interp.allocate_choice_point(code_point::fail());
+	    interp.allocate_choice_point(code_point::fail(), 0);
 	    interp.set_p(code_point(interp.EMPTY_LIST));
 	}
 
@@ -241,7 +241,8 @@ public:
 	    auto context = interp_.new_meta_context<meta_context_remote>(&callback, query, else_do, where, remote_continue_, remote_delete_);
 	    context->set_mode(mode_);
 	    interp_.set_top_b(interp_.b());
-	    interp_.allocate_choice_point(code_point::fail());
+	    interp_.allocate_choice_point(code_point::fail(), 0);
+	    interp_.set_b0(interp_.b());
 	}
 	if (mode_ != MODE_NORMAL) {
 	    return true;
@@ -435,10 +436,10 @@ private:
     void dispatch();
     void dispatch_wam(wam_instruction_base *instruction);
     bool unify_args(term clause_head, const code_point &p);
-    bool can_unify_args(term clause_head, const code_point &p);  
     bool select_clause(const code_point &instruction,
 		       size_t index_id,
-		       const managed_clauses &clauses,
+		       size_t num_clauses,
+		       const common::term *clauses,
 		       size_t from_clause);
   
     inline std::vector<binding> & query_vars()

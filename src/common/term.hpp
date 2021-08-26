@@ -1938,7 +1938,6 @@ namespace std {
 	    return hash<uint64_t>()(c.value());
 	}
     };
-
 }
 
 namespace epilog { namespace common {

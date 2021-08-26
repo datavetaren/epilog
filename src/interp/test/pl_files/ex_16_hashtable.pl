@@ -21,7 +21,7 @@ lookup(N) :-
 check0(P) :- status_predicate(foo:bar/1, P0), lookup(100), status_predicate(foo:bar/1, P1), P is P1 - P0.
 
 ?- check0(P).
-% Expect: P = 500
+% Expect: P = 200
 
 % Then add a variable at foo:bar; it's no longer a "hash table"...
 ?- assert(foo:bar(X) :- X = default).
@@ -31,5 +31,5 @@ check0(P) :- status_predicate(foo:bar/1, P0), lookup(100), status_predicate(foo:
 check1(P) :- status_predicate(foo:bar/1, P0), lookup(100), status_predicate(foo:bar/1, P1), P is P1 - P0.
 
 ?- check1(P).
-% Expect: P = 20600
+% Expect: P = 40400
 

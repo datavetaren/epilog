@@ -54,9 +54,8 @@ bool builtins::debug_check_0(interpreter_base &interp, size_t arity, common::ter
 //
 //
 bool builtins::debug_predicate_1(interpreter_base &interp, size_t arity, common::term args[]) {
-    qname qn = check_predicate(interp, "debug_predicate/1", args[0]);
-    auto &pred = interp.get_predicate(qn);
-    pred.check_index(interp);
+    // qname qn = check_predicate(interp, "debug_predicate/1", args[0]);
+    // auto &pred = interp.get_predicate(qn);
     exit(0);
     return true;
 }
@@ -200,7 +199,7 @@ bool builtins::operator_disjunction(interpreter_base &interp, size_t arity, comm
     }
 
     term arg1 = args[1];
-    interp.allocate_choice_point(code_point(arg1));
+    interp.allocate_choice_point(code_point(arg1), 0);
     interp.allocate_environment<ENV_NAIVE>();
     interp.set_p(code_point(arg0));
     return true;
@@ -211,7 +210,7 @@ bool builtins::operator_if_then(interpreter_base &interp, size_t arity, common::
 {
     static con_cell cut_op_if("_!",0);
 
-    interp.allocate_choice_point(code_point::fail());
+    interp.allocate_choice_point(code_point::fail(), 0);
     interp.move_cut_point_to_last_choice_point();
     term cut_if = cut_op_if;
     term arg0 = args[0];
@@ -238,7 +237,7 @@ bool builtins::operator_if_then_else(interpreter_base &interp, size_t arity, com
     term cut_if = cut_op_if;
 
     // Go to 'C' the false clause if ((A->B) ; C) fails
-    interp.allocate_choice_point(code_point(if_false));
+    interp.allocate_choice_point(code_point(if_false), 0);
     interp.move_cut_point_to_last_choice_point();
     interp.allocate_environment<ENV_NAIVE>();
     interp.set_cp(code_point(if_true));
@@ -697,7 +696,7 @@ bool builtins::arg_3(interpreter_base &interp, size_t arity, common::term args[]
 	// Store P so we can restore program pointer
 	store_p_on_heap_if_wam(interp);
 	// Allocate choice point
-	interp.allocate_choice_point(code_point(interpreter_base::EMPTY_LIST,arg_3_cp, false));
+	interp.allocate_choice_point(code_point(interpreter_base::EMPTY_LIST,arg_3_cp, false), 0);
 	interp.unify(arg_index_term, int_cell(1));
 	arg_index_term = int_cell(1);
     }
@@ -1003,8 +1002,9 @@ bool builtins::operator_disprove(interpreter_base &interp, size_t arity, common:
     interp.new_meta_context<meta_context>(&operator_disprove_meta);
 
     interp.set_top_e();
-    interp.allocate_choice_point(code_point::fail());
+    interp.allocate_choice_point(code_point::fail(), 0);
     interp.set_top_b(interp.b());
+    interp.set_b0(interp.b());
     interp.set_p(code_point(arg));
     interp.set_cp(code_point(interpreter_base::EMPTY_LIST));
 
@@ -1061,8 +1061,9 @@ bool builtins::findall_3(interpreter_base &interp, size_t arity, common::term ar
     context->secondary_hb_ = interp.secondary_env().get_register_hb();
     interp.secondary_env().set_register_hb(interp.secondary_env().heap_size());
     interp.set_top_e();
-    interp.allocate_choice_point(code_point::fail());
+    interp.allocate_choice_point(code_point::fail(), 0);
     interp.set_top_b(interp.b());
+    interp.set_b0(interp.b());
     interp.set_p(code_point(qr));
     interp.set_cp(code_point(interpreter_base::EMPTY_LIST));
     
@@ -1161,7 +1162,7 @@ bool builtins::critical_section_1(interpreter_base &interp, size_t arity, common
 
     interp.new_meta_context<meta_context>(&critical_section_meta);
     interp.set_top_e();
-    interp.allocate_choice_point(code_point::fail());
+    interp.allocate_choice_point(code_point::fail(), 0);
     interp.set_top_b(interp.b());
     interp.set_b0(interp.b());
     interp.set_p(code_point(code));
@@ -1447,11 +1448,15 @@ bool builtins::password_2(interpreter_base &interp, size_t arity, common::term a
 	if (pred.empty()) {
 	    return false;
 	}
-	auto &clauses = pred.clauses();
-	if (interp.functor(clauses[0].clause()) != PASSWD) {
+	auto &clauses = pred.get_clauses();
+	if (clauses.empty()) {
 	    return false;
 	}
-	auto head = interp.clause_head(clauses[0].clause());
+	auto const &first_clause = (*clauses.begin()).clause();
+	if (interp.functor(first_clause) != PASSWD) {
+	    return false;
+	}
+	auto head = interp.clause_head(first_clause);
 	auto passwd = interp.arg(head,0);
 	if (!interp.is_string(passwd)) {
 	    return false;
@@ -1621,46 +1626,119 @@ bool builtins::assertz_1(interpreter_base &interp, size_t arity, common::term ar
     return true;
 }
 
-bool builtins::retract_1(interpreter_base &interp, size_t arity, common::term args[]) {
-    return retract(interp, "retract/1", args[0], false);
-}
-
-bool builtins::retractall_1(interpreter_base &interp, size_t arity, common::term args[]) {
-    return retract(interp, "retractall/1", args[0], true);
-}
-
-bool builtins::retract(interpreter_base &interp, const std::string &pname, term head, bool all) {
+static std::pair<common::con_cell, common::term> retract_module(interpreter_base &interp, const std::string &pname, term arg)
+{
     static const common::con_cell COLON(":", 2);
 
+    auto clause = arg;
+    
     con_cell module = interp.current_module();
-    if (head.tag() == tag_t::STR && interp.functor(head) == COLON) {
-        auto module_term = interp.arg(head, 0);
+    if (clause.tag() == tag_t::STR && interp.functor(clause) == COLON) {
+        auto module_term = interp.arg(clause, 0);
 	if (module_term.tag() != tag_t::CON) {
 	    std::stringstream msg;
 	    msg << pname << ": Expected an atom as module name; was " << interp.to_string(module_term);
 	    throw interpreter_exception_wrong_arg_type(msg.str());
 	}
 	module = reinterpret_cast<con_cell &>(module_term);
-        head = interp.arg(head, 1);
+        clause = interp.arg(clause, 1);
     }
-    if (head.tag() != tag_t::STR && head.tag() != tag_t::CON) {
+    if (clause.tag() != tag_t::STR && clause.tag() != tag_t::CON) {
         std::stringstream msg;
-	msg << pname << ": Expected a structure or an atom; was " << interp.to_string(head);
+	msg << pname << ": Expected a structure or an atom; was " << interp.to_string(clause);
         throw interpreter_exception_wrong_arg_type(msg.str());
     }
+    return std::make_pair(module, clause);
+}
 
-    con_cell p = interp.functor(head);
+static predicate & retract_get_clauses(interpreter_base &interp, common::con_cell module, common::term pattern, bool on_head, std::vector<size_t> &clause_indices) {
+    auto pattern_head = interp.clause_head(pattern);
+    con_cell p = interp.functor(pattern_head);
     auto qn = qname{module,p};
     auto &pred = interp.get_predicate(qn);
-    bool r = pred.matching_clauses(interp, head);
+    pred.get_matched(pattern, on_head, clause_indices);
+    return pred;
+}
+
+struct meta_context_retract : public meta_context {
+    inline meta_context_retract(interpreter_base &interp, meta_fn fn)
+      : meta_context(interp, fn) { }
+    con_cell module;
+    term head;
+};
+
+bool builtins::retract_1(interpreter_base &interp, size_t arity, common::term args[]) {
+    // Setup new environment and where to continue
+    term arg = args[0];
+    common::con_cell module;
+    term clause;
+    std::tie(module, clause) = retract_module(interp, "retract/1", arg);
+    std::vector<size_t> matched_indices;
+    auto &pred = retract_get_clauses(interp, module, clause, false, matched_indices);
+
+    if (matched_indices.empty()) {
+	return false;
+    }
+
+    size_t num_matched = matched_indices.size();
+
+    code_point bt(con_cell("bt",0), retract_backtrack, false);
+
+    auto *ch = interp.allocate_choice_point(bt, num_matched);
+    for (size_t i = 0; i < num_matched; i++) {
+	ch->choice(i) = pred.clauses().get_clause(matched_indices[i]).clause();
+    }
+    ch->bp.set_term_code(int_cell(1));
+
+    pred.remove_clause(ch->choice(0));
+    interp.unify(clause, ch->choice(0));
+
+    interp.deallocate_and_proceed();
+    return true;
+}
+
+bool builtins::retract_backtrack(interpreter_base &interp, size_t arity, common::term args[]) {
+    auto ch = interp.b();
+    auto bp_term = ch->bp.term_code();
+    size_t choice_index = reinterpret_cast<int_cell &>(bp_term).value();
+    if (choice_index >= ch->num_choices) {
+	return false;
+    }
+    auto clause = ch->choice(choice_index);
+    choice_index++;
+    ch->bp.set_term_code(int_cell(choice_index));
+    auto query = interp.a(0);
+    auto f = interp.functor(query);
+    auto module = interp.current_module();
+    if (f == con_cell(":",2)) {
+	// This is module referred
+	module = interp.functor(interp.arg(query, 0));
+	f = interp.functor(interp.arg(query, 1));
+    }
+    auto qn = qname(module, f);
+    auto &pred = interp.get_predicate(qn);
+    pred.remove_clause(clause);
+    interp.unify(query, clause);
+    interp.deallocate_and_proceed();
+    return true;
+}
+
+bool builtins::retractall_1(interpreter_base &interp, size_t arity, common::term args[]) {
+    const std::string pname = "retractall/1";
+    con_cell module;
+    term clause;
+    std::tie(module,clause) = retract_module(interp, pname, args[0]);
+    std::vector<size_t> indices;
+    auto &pred = retract_get_clauses(interp, module, clause, true, indices);
+    bool r = !indices.empty();
+    auto &qn = pred.qualified_name();
     if (r) {
 	interp.updated_predicate_pre(qn);
     }
-    pred.remove_clauses(interp, head, all);
+    pred.remove_clauses(indices);
     if (r) {
 	interp.updated_predicate_post(qn);
     }
-    
     return r;
 }
 
@@ -1854,7 +1932,7 @@ void builtins::load(interpreter_base &interp) {
     i.load_builtin(con_cell("asserta",1), builtin(&builtins::asserta_1));
     i.load_builtin(con_cell("assertz",1), builtin(&builtins::assertz_1));
     i.load_builtin(con_cell("assert",1), builtin(&builtins::assertz_1));
-    i.load_builtin(con_cell("retract",1), builtin(&builtins::retract_1));
+    i.load_builtin(con_cell("retract",1), builtin(&builtins::retract_1, true));
     i.load_builtin(i.functor("retractall",1), builtin(&builtins::retractall_1));
     i.load_builtin(i.functor("current_predicate",1), builtin(&builtins::current_predicate_1));
     i.load_builtin(i.functor("status_predicate",2), builtin(&builtins::status_predicate_2));

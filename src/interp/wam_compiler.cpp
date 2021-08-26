@@ -1854,7 +1854,8 @@ std::vector<common::int_cell> wam_compiler::new_labels_dup(size_t n)
 }
 
 std::vector<size_t> wam_compiler::find_clauses_on_cat(
-      const managed_clauses &m_clauses, wam_compiler::first_arg_cat_t cat)
+	      const std::vector<managed_clause> &m_clauses,
+	      wam_compiler::first_arg_cat_t cat)
 {
     std::vector<size_t> found;
     size_t index = 0;
@@ -1867,7 +1868,8 @@ std::vector<size_t> wam_compiler::find_clauses_on_cat(
     return found;
 }
 
-void wam_compiler::emit_switch_on_term(const managed_clauses &subsection,
+void wam_compiler::emit_switch_on_term(
+	       const std::vector<managed_clause> &subsection,
 	       const std::vector<common::int_cell> &labels,
 	       wam_interim_code &instrs)
 {
@@ -1911,7 +1913,7 @@ void wam_compiler::emit_third_level_indexing(
 
 void wam_compiler::emit_second_level_indexing(
 	      wam_compiler::first_arg_cat_t cat,
-	      const managed_clauses &subsection,
+	      const std::vector<managed_clause> &subsection,
 	      const std::vector<common::int_cell> &labels,
 	      const std::vector<size_t> &clause_indices,
 	      code_point cp,
@@ -1974,7 +1976,7 @@ void wam_compiler::emit_second_level_indexing(
     }
 }
 
-void wam_compiler::compile_subsection(const managed_clauses &subsection,
+void wam_compiler::compile_subsection(const std::vector<managed_clause> &subsection,
 				      wam_interim_code &instrs)
 {
     auto n = subsection.size();
@@ -2047,14 +2049,14 @@ term wam_compiler::clause_body(const term clause)
     }
 }
 
-std::vector<managed_clauses> wam_compiler::partition_clauses(
-	    const managed_clauses &clauses,
+std::vector<std::vector<managed_clause> > wam_compiler::partition_clauses(
+	    const std::vector<managed_clause> &clauses,
 	    std::function<bool (const managed_clause &c1,
 				const managed_clause &c2)> pred)
 {
-    std::vector<managed_clauses> partitioned;
+    std::vector<std::vector<managed_clause> > partitioned;
 
-    partitioned.push_back(managed_clauses());
+    partitioned.push_back(std::vector<managed_clause>());
     auto *v = &partitioned.back();
     bool has_last_clause = false;
     managed_clause last_clause;
@@ -2079,7 +2081,7 @@ std::vector<managed_clauses> wam_compiler::partition_clauses(
 	if (is_diff) {
 	    // It's a var, if v is non-empty, push it and create a new one
 	    if (!v->empty()) {
-	        partitioned.push_back(managed_clauses());
+	        partitioned.push_back(std::vector<managed_clause>());
 		v = &partitioned.back();
 	    }
 	}
@@ -2145,7 +2147,7 @@ bool wam_compiler::first_arg_is_str(const term clause)
     return arg.tag() == common::tag_t::STR;
 }
 
-std::vector<managed_clauses> wam_compiler::partition_clauses_nonvar(const managed_clauses &clauses)
+std::vector<std::vector<managed_clause> > wam_compiler::partition_clauses_nonvar(const std::vector<managed_clause> &clauses)
 {
     return partition_clauses(clauses,
        [&] (const managed_clause &c1, const managed_clause &c2)
@@ -2156,10 +2158,10 @@ std::vector<managed_clauses> wam_compiler::partition_clauses_nonvar(const manage
 	     });
 }
 
-std::vector<managed_clauses> wam_compiler::partition_clauses_first_arg(const managed_clauses &clauses)
+std::vector<std::vector<managed_clause> > wam_compiler::partition_clauses_first_arg(const std::vector<managed_clause> &clauses)
 {
-    std::unordered_map<term, managed_clauses> map;
-    managed_clauses refs;
+    std::unordered_map<term, std::vector<managed_clause> > map;
+    std::vector<managed_clause> refs;
     std::vector<term> order;
 
     for (auto &m_clause : clauses) {
@@ -2190,7 +2192,7 @@ std::vector<managed_clauses> wam_compiler::partition_clauses_first_arg(const man
 	}
     }
 
-    std::vector<managed_clauses> result;
+    std::vector<std::vector<managed_clause> > result;
     if (!refs.empty()) {
         result.push_back(refs);
     }
@@ -2203,7 +2205,7 @@ std::vector<managed_clauses> wam_compiler::partition_clauses_first_arg(const man
 }
 
 void wam_compiler::print_partition(std::ostream &out,
-				   const std::vector<managed_clauses> &p)
+				   const std::vector<std::vector<managed_clause> > &p)
 {
     size_t i = 0;
     for (auto &m_clauses : p) {

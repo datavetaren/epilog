@@ -44,6 +44,7 @@ split([A,B|Xs],[A|As],[B|Bs]) :-
 % Expect: Q9 = [1,2,3,4]
 % Expect: end
 
+
 %
 % select/3
 %

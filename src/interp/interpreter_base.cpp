@@ -21,32 +21,179 @@ const common::con_cell interpreter_base::IMPLIED_BY = common::con_cell(":-",2);
 const common::con_cell interpreter_base::ACTION_BY = common::con_cell(":-",1);
 const common::con_cell interpreter_base::USER_MODULE = common::con_cell("user",0);
 const common::con_cell interpreter_base::COLON = common::con_cell(":",2);
-	
-void predicate::check_index(interpreter_base &interp)
-{
-    if (with_vars_) return;
-    
-    size_t ordinal = 0;
-    for (auto &mclause : clauses_) {
-	assert(mclause.ordinal() != ordinal);
-	ordinal++;
 
+void managed_clauses::add_clause(const managed_clause &mclause, clause_position pos) {
+    if (pos == FIRST_CLAUSE) {
+	clauses_.insert(clauses_.begin(), mclause);
+	clear_index();
+    } else {
+	size_t i = clauses_.size();
+	clauses_.push_back(mclause);
+	add_index(i);
+    }
+    num_clauses_++;
+}
+
+bool managed_clauses::remove_clause(common::term clause) {
+    auto head = interp_->clause_head(clause);
+    auto &index = get_indexed(head);
+    size_t n = index.size();
+    for (size_t i = 0; i < n; i++) {
+	size_t clause_index = index[i];
+	if (clause_index == std::numeric_limits<size_t>::max()) continue;
+	auto &mclause = clauses_[clause_index];
 	if (mclause.is_erased()) {
 	    continue;
 	}
-	
-	auto first_arg_index = interp.arg_index(interp.clause_first_arg(mclause.clause()));
-	auto &idx = indexed_[first_arg_index];
-	bool found = false;
-	size_t i = 0;
-	for (auto &m : idx) {
-	    if (m == mclause) {
-		found = true;
-	    }
-	    i++;
+	if (clause == mclause.clause()) {
+	    mclause.erase();
+	    num_clauses_--;
+	    return true;
 	}
-	assert(found);
     }
+    return false;
+}
+
+/*
+bool managed_clauses::remove_all_clauses(common::term head) {
+    bool ok = false;
+    auto first_arg = interp_->get_first_arg(head);
+    auto &index = get_indexed(first_arg);
+    size_t n = index.size();
+    for (size_t i = 0; i < n; i++) {
+	size_t clause_index = index[i];
+	if (clause_index == std::numeric_limits<size_t>::max()) continue;
+	auto &mclause = clauses_[clause_index];
+	auto clause = mclause.clause();
+	if (interp_->can_unify(head, clause)) {
+	    mclause.erase();
+	    num_clauses_--;
+	    ok = true;
+	}
+    }
+    return ok;
+}
+*/
+
+void managed_clauses::remove_clauses(const std::vector<size_t> &indices) {
+    size_t n = indices.size();
+    for (size_t i = 0; i < n; i++) {
+	size_t index = indices[i];
+	auto &mclause = get_clause(index);
+	if (!mclause.is_erased()) {
+	    remove_index(index);
+	    mclause.erase();
+	    num_clauses_--;
+	}
+    }
+}
+	
+void managed_clauses::add_index(size_t i) {
+    increment_performance_count();
+    auto &mclause = clauses_[i];
+    auto clause = mclause.clause();
+    auto first_arg = interp_->clause_first_arg(clause);
+    all_.push_back(i);
+    if (first_arg == term()) {
+	return;
+    }
+    auto tag = first_arg.tag();
+    if (tag.is_ref()) {
+	has_vars_ = true;
+    } else {
+        auto tag_value = static_cast<size_t>(tag);
+	auto &map = index_[tag_value];
+	auto h = interp_->simple_hash(first_arg);
+	auto &indexed = map[h];
+	indexed.push_back(i);
+    }
+}
+
+void managed_clauses::remove_index(size_t i) {
+    increment_performance_count();    
+    auto &mclause = clauses_[i];
+    auto clause = mclause.clause();
+    auto first_arg = interp_->clause_first_arg(clause);
+    if (first_arg == term()) {
+	return;
+    }
+    all_[i] = std::numeric_limits<size_t>::max();
+    auto tag = first_arg.tag();
+    if (tag.is_ref()) {
+	for (auto &map : index_) {
+	    for (auto &p2 : map) {
+		auto &indexed = p2.second;
+		auto it = std::find(indexed.begin(), indexed.end(), i);
+	        indexed.erase(it);
+	    }
+	}
+    } else {
+        auto tag_value = static_cast<size_t>(tag);
+	auto &map = index_[tag_value];
+	auto h = interp_->simple_hash(first_arg);
+	auto &indexed = map[h];
+	auto it = std::find(indexed.begin(), indexed.end(), i);
+        if (it != indexed.end()) {
+	    indexed.erase(it);
+	}
+    }
+}
+
+std::vector<size_t> managed_clauses::all_var_based_clauses() const {
+    std::vector<size_t> var_based;
+    auto n = clauses_.size();
+    for (size_t i = 0; i < n; i++) {
+	auto clause = clauses_[i].clause();
+	auto first_arg = interp_->clause_first_arg(clause);
+	if (first_arg == term()) {
+	    continue;
+	}
+	auto tag = first_arg.tag();
+	if (tag.is_ref()) {
+	    var_based.push_back(i);
+	}
+    }
+    return var_based;
+}
+
+void managed_clauses::do_index() const
+{
+    if (is_indexed_) {
+	return;
+    }
+    has_vars_ = false;
+    for (size_t i = 0; i < NUM_TAGS; i++) {
+	index_[i].clear();
+    }
+    all_.clear();
+    auto n = clauses_.size();
+    auto var_based = all_var_based_clauses();
+    for (size_t i = 0; i < n; i++) {
+	auto mclause = clauses_[i];
+	all_.push_back(i);
+	if (mclause.is_erased()) continue;
+	auto clause = mclause.clause();
+	auto first_arg = interp_->clause_first_arg(clause);
+	if (first_arg == term()) {
+	    continue;
+	}
+	auto tag = first_arg.tag();
+	if (tag.is_ref()) {
+	    has_vars_ = true;
+	    continue;
+	}
+	auto tag_value = static_cast<size_t>(tag);
+	auto &second_indexing_map = index_[tag_value];
+	auto h = interp_->simple_hash(first_arg);
+	auto &indexed = second_indexing_map[h];
+	for (auto j : var_based) {
+	    if (i > j) {
+		indexed.push_back(i);
+	    }
+	    indexed.push_back(j);
+	}
+    }
+    is_indexed_ = true;
 }
 	
 meta_context::meta_context(interpreter_base &i, meta_fn mfn)
@@ -208,16 +355,21 @@ void interpreter_base::foreach_stack_frame(interpreter_base::stack_frame_visitor
     std::unordered_set<void *> visited;
     std::stack<entry_t> worklist;
 
+
+    auto do_push = [&](const entry_t &e) {
+	worklist.push(e);
+    };
+
     if (e0()) {
 	switch (e_kind()) {
-	case ENV_NAIVE: worklist.push(entry_t(ee())); break;
-	case ENV_WAM: worklist.push(entry_t(e())); break;
-	case ENV_FROZEN: worklist.push(entry_t(ef())); break;
+	case ENV_NAIVE: do_push(entry_t(ee())); break;
+	case ENV_WAM: do_push(entry_t(e())); break;
+	case ENV_FROZEN: do_push(entry_t(ef())); break;
 	}
     }
-    if (b()) worklist.push(entry_t(b()));
-    if (b0()) worklist.push(entry_t(b0()));
-    if (m()) worklist.push(entry_t(m()));
+    if (b()) do_push(entry_t(b()));
+    if (b0()) do_push(entry_t(b0()));
+    if (m()) do_push(entry_t(m()));
 
     while (!worklist.empty()) {
 	auto ent = worklist.top();
@@ -249,22 +401,22 @@ void interpreter_base::foreach_stack_frame(interpreter_base::stack_frame_visitor
 	switch (ent.kind) {
 	    case ENTRY_ENV_FROZEN:
 	    case ENTRY_ENV_NAIVE:
-		worklist.push(ent.env_naive->b0);
+		do_push(ent.env_naive->b0);
 		// Fall through
 	    case ENTRY_ENV_WAM:
-		worklist.push(entry_t(ent.env_base->ce));
+		do_push(entry_t(ent.env_base->ce));
 		break;
 	    case ENTRY_CHOICE_POINT:
-		worklist.push(entry_t(ent.choice->ce));
-		worklist.push(entry_t(ent.choice->m));
-		worklist.push(entry_t(ent.choice->b));
-		worklist.push(entry_t(ent.choice->b0));
+		do_push(entry_t(ent.choice->ce));
+		do_push(entry_t(ent.choice->m));
+		do_push(entry_t(ent.choice->b));
+		do_push(entry_t(ent.choice->b0));
 		break;
 	    case ENTRY_META_CONTEXT:
-	        worklist.push(entry_t(ent.meta->old_m));
-	        worklist.push(entry_t(ent.meta->old_b));
-	        worklist.push(entry_t(ent.meta->old_b0));
-	        worklist.push(entry_t(environment_saved_t(ent.meta->old_e, ent.meta->old_e_kind)));
+	        do_push(entry_t(ent.meta->old_m));
+	        do_push(entry_t(ent.meta->old_b));
+	        do_push(entry_t(ent.meta->old_b0));
+	        do_push(entry_t(environment_saved_t(ent.meta->old_e, ent.meta->old_e_kind)));
 		break;
 	}
     }
@@ -293,8 +445,9 @@ void interpreter_base::reset()
     do {
         cont = false;
         while (b() != top_b()) {
-	    reset_to_choice_point(b());
-	    set_b(b()->b);
+	    auto *ch = b();
+	    reset_to_choice_point(ch);
+	    set_b(ch->b);
 	    set_register_hb(b());
 	}
 	if (top_b() != nullptr) {
@@ -306,6 +459,10 @@ void interpreter_base::reset()
 
     register_e_ = nullptr;
     register_e_kind_ = ENV_NAIVE;
+    register_top_b_ = nullptr;
+    register_top_e_ = nullptr;
+    register_b_ = nullptr;
+    register_b0_ = nullptr;
 
     if (!persistent_password_) {
         clear_secret();
@@ -633,11 +790,16 @@ void interpreter_base::load_clause(term t, clause_position pos)
     
     auto found = program_db_.find(qn);
     if (found == program_db_.end()) {
-        program_db_[qn] = predicate(qn);
+        program_db_[qn] = predicate(*this, qn);
 	program_db_[qn].set_id(program_predicates_.size()+1);
 	program_predicates_.push_back(qn);
     }
 
+    auto it = program_db_.find(qn);
+    if (it == program_db_.end()) {
+	program_db_.insert(std::make_pair(qn, predicate(*this, qn)));
+    }
+    
     auto &pred = program_db_[qn];
     pred.add_clause(*this, t, pos);
 
@@ -659,7 +821,7 @@ void interpreter_base::remove_clauses(const qname &qn)
 
     if (pred.num_clauses()) {
 	updated_predicate_pre(qn);
-	pred.remove_clauses(*this, term(), true);
+	pred.clear();
 	updated_predicate_post(qn);
     }
 }
@@ -1039,10 +1201,8 @@ void interpreter_base::unwind_to_top_choice_point()
     set_b(top_b());
 }
 
-choice_point_t * interpreter_base::reset_to_choice_point(choice_point_t *b)
+choice_point_t * interpreter_base::reset_to_choice_point(choice_point_t *ch)
 {
-    auto ch = b;
-
     // std::cout << "reset_to_choice_point(): b=" << b << std::endl;
     
     set_m(ch->m);
@@ -1059,8 +1219,10 @@ choice_point_t * interpreter_base::reset_to_choice_point(choice_point_t *b)
     size_t n = ch->arity;
     num_of_args_ = n;
     for (size_t i = 0; i < n; i++) {
-	a(i) = ch->ai[i];
+	a(i) = ch->ai(i);
     }
+
+    set_b(ch);
 
     return ch;
 }
@@ -1250,7 +1412,7 @@ void interpreter_base::get_stack_roots(std::vector<common::ptr_cell *> &roots) {
 	  // the last choice point.
 	  add_root(roots, &(cur_cp->qr));
 	  for (size_t i = 0; i < cur_cp->arity; i++) {
-	    add_root(roots, &cur_cp->ai[i]);
+	      add_root(roots, &cur_cp->ai(i));
 	  }
           cur_cp = cur_cp->b;
         }
@@ -1409,7 +1571,7 @@ void interpreter_base::dump_choice_points() {
     }
     std::cout << "Meta: " << current_b->m << "\n";
     for(size_t i = 0; i < barity; i++) {
-      std::cout << "Arg[" << i << "]: " << to_string(current_b->ai[i]) << "\n";
+	std::cout << "Arg[" << i << "]: " << to_string(current_b->ai(i)) << "\n";
     }
     current_b = current_b->b;
   }

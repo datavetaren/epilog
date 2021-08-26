@@ -29,7 +29,7 @@ last_wam(A, B, Y) :-
     Y = combined(A,B).
 
 back_to_wam(X, Y, Z, back(X,Y,Z)).
-
+    
 ?- foo(10, Q1, Q2, Q3).
 % Expect: Q1 = combined(foo(10), bar(10)), Q2 = more(simple(10, combined(foo(10), bar(10)))), Q3 = back(10, combined(foo(10), bar(10)), more(simple(10, combined(foo(10), bar(10)))))
 % Expect: end

@@ -513,6 +513,7 @@ template<typename Interpreter = interpreter>static inline void test_interpreter_
 {
     auto files = test_interpreter_get_files(dir, filter);
     for (auto &filepath : files) {
+        interp.reset();
 	bool r = test_interpreter_file(filepath.string(), interp, hook);
 	assert(r);
     }

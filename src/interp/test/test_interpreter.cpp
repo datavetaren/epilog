@@ -56,6 +56,8 @@ static void eval_check_1(const std::string &program,
 {
     interpreter interp("test");
 
+    interp.new_cell0(con_cell("start",0));
+    
     term prog = interp.parse(program);
 
     // interp.set_debug(true);
@@ -114,6 +116,8 @@ static void eval_check_n(const std::string &program,
 			 const std::string &expected)
 {
     interpreter interp("test");
+
+    interp.new_cell0(con_cell("start",0));    
 
     // interp.set_debug(true);
 
@@ -177,6 +181,8 @@ static void test_interpreter_serialize()
 
     interpreter interp("test");
 
+    interp.new_cell0(con_cell("start",0));
+
     const std::string program = 
 	R"PROGRAM(
            [build(X,Y) :- Y = foo(X,X,bar(X,42))].
@@ -234,6 +240,8 @@ static void test_interpreter_multi_instance()
     header("test_interpreter_multi_instance()");
 
     interpreter interp("test");
+
+    interp.new_cell0(con_cell("start",0));    
 
     interp.setup_standard_lib();
 
@@ -299,6 +307,8 @@ static void test_interpreter_freeze_preprocess()
     header("test_interpreter_freeze_preprocess()");
 
     interpreter interp("test");
+
+    interp.new_cell0(con_cell("start",0));    
 
     const std::string program = 
 	R"PROGRAM(

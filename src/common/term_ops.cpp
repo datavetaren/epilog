@@ -117,7 +117,7 @@ void term_ops::put(const std::string &name, size_t arity, size_t precedence, ter
     ops.insert( std::upper_bound( ops.begin(), ops.end(), newE), newE );
 }
 
-const term_ops::op_entry & term_ops::prec(cell c) const
+const term_ops::op_entry & term_ops::prec(con_cell c) const
 {
     auto it = op_prec_.find(c);
     if (it == op_prec_.end()) {

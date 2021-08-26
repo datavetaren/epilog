@@ -231,6 +231,7 @@ typedef std::pair<common::con_cell, common::con_cell> qname;
         static bool assertz_1(interpreter_base &interp, size_t arity, common::term args[]);
         static bool assert_1(interpreter_base &interp, size_t arity, common::term args[]);
         static bool retract_1(interpreter_base &interp, size_t arity, common::term args[]);
+	static bool retract_backtrack(interpreter_base &interp, size_t arity, common::term args[]);
         static bool retractall_1(interpreter_base &interp, size_t arity, common::term args[]);
         static bool retract(interpreter_base &interp, const std::string &pame, common::term head, bool all);
         static qname check_predicate(interpreter_base &interp, const std::string &pname, common::term arg);

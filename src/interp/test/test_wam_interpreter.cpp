@@ -456,7 +456,7 @@ void test_wam_compiler::test_unsafe_set_unify()
 {
     term t = interp_.parse("a(X) :- b(f(X)).");
     wam_interim_code seq(interp_);
-    managed_clause m(t, 0, 0);
+    managed_clause m(t, 0);
     comp_.compile_clause(m, seq);
 
     seq.print(std::cout);

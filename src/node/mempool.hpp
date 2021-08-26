@@ -31,6 +31,9 @@ public:
     mempool();
 
     void add_tx(const common::term_serializer::buffer_t &buf);
+
+private:
+    size_t id_count_;
 };
 
 }}

@@ -506,7 +506,7 @@ private:
     std::vector<common::int_cell> new_labels_dup(size_t n);
     void emit_cp(std::vector<common::int_cell> &labels, size_t index, size_t n,
 		 wam_interim_code &instrs);
-    void compile_subsection(const managed_clauses &subsection,
+    void compile_subsection(const std::vector<managed_clause> &subsection,
 			    wam_interim_code &instrs);
 
     common::int_cell new_label();
@@ -554,17 +554,17 @@ private:
     bool first_arg_is_con(const term clause);
     bool first_arg_is_str(const term clause);
 
-    std::vector<managed_clauses> partition_clauses(const managed_clauses &clauses, std::function<bool (const managed_clause &c1, const managed_clause &t2)> pred);
-    std::vector<managed_clauses> partition_clauses_nonvar(const managed_clauses &clauses);
-    std::vector<managed_clauses> partition_clauses_first_arg(const managed_clauses &clauses);
-    std::vector<size_t> find_clauses_on_cat(const managed_clauses &clauses,
+    std::vector<std::vector<managed_clause> > partition_clauses(const std::vector<managed_clause> &clauses, std::function<bool (const managed_clause &c1, const managed_clause &t2)> pred);
+    std::vector<std::vector<managed_clause> > partition_clauses_nonvar(const std::vector<managed_clause> &clauses);
+    std::vector<std::vector<managed_clause> > partition_clauses_first_arg(const std::vector<managed_clause> &clauses);
+    std::vector<size_t> find_clauses_on_cat(const std::vector<managed_clause> &clauses,
 					    first_arg_cat_t cat);
-    void emit_switch_on_term(const managed_clauses &subsection,
+    void emit_switch_on_term(const std::vector<managed_clause> &subsection,
 			     const std::vector<common::int_cell> &labels,
 			     wam_interim_code &instrs);
     void emit_second_level_indexing(
 	      wam_compiler::first_arg_cat_t cat,
-	      const managed_clauses &subsection,
+	      const std::vector<managed_clause> &subsection,
 	      const std::vector<common::int_cell> &labels,
 	      const std::vector<size_t> &clause_indices,
 	      code_point cp,
@@ -575,7 +575,7 @@ private:
 	     wam_interim_code &instrs);
 
     void print_partition(std::ostream &out,
-			 const std::vector<managed_clauses> &partition);
+			 const std::vector<std::vector<managed_clause> > &partition);
 
     template<reg_type T> bool has_reg(common::ref_cell ref);
 

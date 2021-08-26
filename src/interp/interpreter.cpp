@@ -19,6 +19,9 @@ void interpreter::reset()
     wam_interpreter::reset();
     query_vars_ = nullptr;
     num_instances_ = 0;
+    if (heap_size() == 0) {
+	new_cell0(con_cell("start",0));
+    }
 }
 
 void interpreter::total_reset()
@@ -203,6 +206,12 @@ bool interpreter::execute(const term query, bool silent)
     using namespace epilog::common;
 
     bool do_new_instance = false;
+    static int cnt = 0;
+    ++cnt;
+
+    if (heap_size() == 0) {
+	new_cell0(con_cell("start",0));
+    }
 
     while (num_instances() > 0 && !has_more()) {
 	delete_instance();
@@ -403,8 +412,7 @@ void interpreter::fail()
 	        ok = bp.bn()(*this, ch->arity, args());	      
 	    } else if (bp.term_code().tag() != common::tag_t::INT) {
 	        // Direct query
-	        static managed_clauses empty_clauses;
-	        ok = select_clause(bp, 0, empty_clauses, 0);
+	        ok = select_clause(bp, 0, 0, nullptr, 0);
 	    } else {
 		auto bpterm = bp.term_code();
 		size_t bpval = reinterpret_cast<const int_cell &>(bpterm).value();
@@ -412,15 +420,14 @@ void interpreter::fail()
 		if (bpval != 0) {
 		    size_t pred_id = bpval >> 32;
 		    
-		    auto &pred = get_predicate(pred_id);
+		    // auto &pred = get_predicate(pred_id);
 		    auto first_arg = get_first_arg(qr());
 		    if (is_debug()) {
 			std::string redo_str = to_string(qr());
 			std::cout << "interpreter::fail(): redo " << redo_str << " (first_arg=" << to_string(first_arg) << ")" << std::endl;
 		    }
-		    auto &clauses = pred.get_clauses(*this, first_arg);
 		    size_t from_clause = bpval & 0xffffffff;
-		    ok = select_clause(code_point(qr()), pred_id, clauses, from_clause);
+		    ok = select_clause(code_point(qr()), pred_id, ch->num_choices, ch->choices(), from_clause);
 		}
 	    }
 	    if (!ok) {
@@ -479,39 +486,12 @@ bool interpreter::unify_args(term head, const code_point &p)
     }
 }
 
-bool interpreter::can_unify_args(term head, const code_point &p)
-{
-    static const common::con_cell colon(":",2);
-    
-    if (p.term_code().tag() == common::tag_t::STR) {
-        term goal = p.term_code();
-	if (functor(goal) == colon) {
-	    goal = arg(goal, 1);
-	}
-	return can_unify(head, goal);
-    } else {
-	// Otherwise this is an already disected call with
-	// args. So unify with arguments.
-	size_t n = num_of_args();
-	bool fail = false;
-	if (head == colon) {
-	    head = arg(head, 1);
-	}
-	for (size_t i = 0; i < n; i++) {
-	    auto arg_i = arg(head, i);
-	    if (!can_unify(arg_i, a(i))) {
-		fail = true;
-		break;
-	    }
-	}
-	return !fail;
-    }
-}
 
 
 bool interpreter::select_clause(const code_point &instruction,
 				size_t predicate_id,
-				const managed_clauses &clauses,
+				size_t num_choices,
+				const term *choices,
 				size_t from_clause)
 {
     if (is_debug()) {
@@ -527,22 +507,21 @@ bool interpreter::select_clause(const code_point &instruction,
 	return true;
     }
 
-    size_t num_clauses = clauses.size();
-    bool has_choices = num_clauses > 1;
+    bool has_choices = num_choices > 1;
 
     if (is_debug()) {
-        std::cout << "select clause: num_clauses=" << num_clauses << ": match with=" << to_string(instruction.term_code()) << "\n";
-	for (size_t i = 0; i < num_clauses; i++) {
-	    std::cout << "  [" << i << "]: " << to_string(clauses[i].clause()) << std::endl;
+        std::cout << "select clause: num_choices=" << num_choices << ": match with=" << to_string(instruction.term_code()) << "\n";
+	for (size_t i = 0; i < num_choices; i++) {
+	    std::cout << "  [" << i << "]: " << to_string(choices[i]) << std::endl;
 	}
     }
     
     // Let's go through clause by clause and see if we can find a match.
-    for (size_t i = from_clause; i < num_clauses; i++) {
-        auto &m_clause = clauses[i];
+    for (size_t i = from_clause; i < num_choices; i++) {
+        auto clause = choices[i];
 
 	// Avoid copying if it does not match
-	if (!can_unify_args(clause_head(m_clause.clause()),
+	if (!can_unify_args(clause_head(clause),
 			    code_point(instruction.term_code()))) {
 	    continue;
 	}
@@ -550,7 +529,7 @@ bool interpreter::select_clause(const code_point &instruction,
 	size_t current_heap = heap_size();
 	// No need to copy the names when instantiating a new clause from
 	// the program database, as it's the caller's names that matter.
-	auto copy_clause = copy_without_names(m_clause.clause()); // Instantiate it
+	auto copy_clause = copy_without_names(clause); // Instantiate it
 
 	term copy_head = clause_head(copy_clause);
 	term copy_body = clause_body(copy_clause);
@@ -559,7 +538,7 @@ bool interpreter::select_clause(const code_point &instruction,
 	    // Update choice point (where to continue on fail...)
 	    if (has_choices) {
 	        auto choice_point = b();
-		if (i == num_clauses - 1) {
+		if (i == num_choices - 1) {
 		    // If we are at the last clause, then we can remove the choice point.
 		    choice_point->bp = code_point::fail();
 		    interpreter_base::cut();
@@ -572,12 +551,6 @@ bool interpreter::select_clause(const code_point &instruction,
 	    set_cp(code_point(interpreter_base::EMPTY_LIST));
 	    set_p(code_point(copy_body));
 	    set_qr(copy_head);
-
-	    // We've found a clause to execute. At this point we'll
-	    // add the cost of the clause. Note that unification above
-	    // is also adding to the cost.
-	    
-	    add_accumulated_cost(m_clause.cost());
 
 	    check_frozen(); // After unification of head we'll process
 	                    // frozen closures (so these are run first.)
@@ -632,7 +605,9 @@ void interpreter::dispatch()
 
     if (is_debug()) {
         // Print call
-        std::cout << "interpreter::dispatch(): call " << to_string_cp(p()) << " cp=" << to_string_cp(cp()) << "\n";
+        auto p_str = to_string_cp(p());
+	auto cp_str = to_string_cp(cp());
+        std::cout << "interpreter::dispatch(): call " << p_str << " cp=" << cp_str << std::endl;
     }
 
 #if PROFILER
@@ -728,7 +703,6 @@ void interpreter::dispatch()
 	}
     }
 
-    auto first_arg = get_first_arg();
     const predicate &pred = get_predicate(module, f);
 
     if (pred.empty()) {
@@ -749,23 +723,29 @@ void interpreter::dispatch()
 	set_pr(qn);
     }
 
-    // Otherwise a vector of clauses
-    auto &clauses = pred.get_clauses(*this, first_arg);
+    // Select clause. Create choice point if necessary.
 
     set_b0(b());
-
-    size_t num_clauses = clauses.size();
-    bool has_choices = num_clauses > 1;
     size_t pred_id = pred.id();
-
-    // More than one clause that matches? We need a choice point.
-    if (has_choices) {
-        int_cell index_id_int(static_cast<int64_t>(pred_id) << 32);
-	code_point ch(index_id_int);
-	allocate_choice_point(ch);
+    
+    size_t num_choices = pred.num_matched(qr(), true);
+    if (num_choices == 0) {
+	fail();
+	return;
     }
+    
+    bool has_choice = num_choices > 1;
+    term single_clause;
+    term *choices = &single_clause;
+    if (has_choice) {
+	int_cell index_id_int(static_cast<int64_t>(pred_id) << 32);
+	code_point cp(index_id_int);
+	allocate_choice_point(cp, num_choices);
+	choices = b()->choices();
+    }
+    pred.get_matched(qr(), true, choices);
 
-    if (!select_clause(code_point(p().term_code()), pred_id, clauses, 0)) {
+    if (!select_clause(code_point(qr()), pred_id, num_choices, choices, 0)) {
 	fail();
     }
 }

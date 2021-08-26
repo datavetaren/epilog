@@ -807,7 +807,7 @@ bool global::wrap_fees(term_env &src, term &goals, term fee_coin, term to_add) {
     // unbind all variables.
 
     interp_->set_top_e();
-    interp_->allocate_choice_point(code_point::fail());
+    interp_->allocate_choice_point(code_point::fail(), 0);
     interp_->set_top_b(interp_->b());
 
     bool r = execute_goal(dst_goal);

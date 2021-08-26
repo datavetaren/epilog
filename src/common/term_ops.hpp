@@ -71,12 +71,12 @@ public:
 	return op_none_;
     }
 
-    const op_entry & prec(cell c) const;
+    const op_entry & prec(con_cell c) const;
 
     const std::vector<op_entry> & prec(const std::string &name) const;
 
 private:
-    std::unordered_map<cell, op_entry> op_prec_;
+    std::unordered_map<con_cell, op_entry> op_prec_;
 
     // From a lexeme there's a set of operators that match.
     std::unordered_map<std::string, std::vector<op_entry> > name_prec_;

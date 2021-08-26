@@ -34,14 +34,13 @@ class predicate;
 class managed_clause {
 public:
     inline managed_clause()
-        : clause_(), cost_(0), ordinal_(0) { }
-    inline managed_clause(common::term cl, uint64_t cost, size_t ord)
-        : clause_(cl), cost_(cost), ordinal_(ord) { }
+        : clause_(), cost_(0) { }
+    inline managed_clause(common::term cl, uint64_t cost)
+        : clause_(cl), cost_(cost) { }
     inline managed_clause(const managed_clause &other) = default;
 
     inline bool operator == (const managed_clause &other) const {
-	return clause_ == other.clause_ && ordinal_ == other.ordinal_ &&
-	       cost_ == other.cost_;
+	return clause_ == other.clause_;
     }
     
     inline common::term clause() const {
@@ -59,10 +58,6 @@ public:
     inline void erase() {
         clause_ = common::term();
     }
-  
-    inline size_t ordinal() const {
-        return ordinal_;
-    }
 
     inline uint64_t cost() const {
 	return cost_;
@@ -70,54 +65,131 @@ public:
 
 private:
     friend class predicate;
-    void set_ordinal(size_t ord) { ordinal_ = ord; }
 
     common::term clause_;
     size_t cost_;
-    size_t ordinal_;
 };
 
-typedef std::vector<managed_clause> managed_clauses;
-
 enum clause_position { FIRST_CLAUSE, LAST_CLAUSE };
+
+class managed_clauses {
+public:
+    managed_clauses() : interp_(nullptr), num_clauses_(0), has_vars_(false), is_indexed_(true), performance_count_(0) { }
+    managed_clauses(interpreter_base &i)
+	: interp_(&i), num_clauses_(0), has_vars_(false), is_indexed_(true), performance_count_(0) { }
+
+    managed_clauses(const managed_clauses &other) = default;
+
+    std::vector<managed_clause>::iterator begin() {
+	return clauses_.begin();
+    }
+
+    std::vector<managed_clause>::iterator end() {
+	return clauses_.end();
+    }
     
+    void clear() {
+	num_clauses_ = 0;
+	has_vars_ = false;
+	clauses_.clear();
+	is_indexed_ = true;
+	for (size_t i = 0; i < NUM_TAGS; i++) index_[i].clear();
+	all_.clear();
+	performance_count_ = 0;
+    }
+    void add_clause(const managed_clause &mclause, clause_position pos);
+    void remove_clauses(const std::vector<size_t> &indices);
+    bool remove_clause(common::term clause);
+
+    const managed_clause & get_clause(size_t index) const {
+	return clauses_[index];
+    }
+
+    const managed_clause & operator [] (size_t index) const {
+	return get_clause(index);
+    }
+
+    managed_clause & get_clause(size_t index) {
+	return clauses_[index];
+    }
+
+    void get_matched(common::term pattern, bool on_head, std::vector<size_t> &indices) const;
+    size_t num_matched(common::term pattern, bool on_head) const;
+    void get_matched(common::term pattern, bool on_head, common::term *clauses) const;
+    void get_matched_first_arg(common::term first, std::vector<common::term> &clauses) const;
+
+    size_t num_clauses() const {
+	return num_clauses_;
+    }
+
+    const std::vector<managed_clause> & get_clauses() const {
+	return clauses_;
+    }
+
+    std::vector<managed_clause> & get_clauses() {
+	return clauses_;
+    }
+
+    const std::vector<size_t> & get_indexed(common::term head) const;
+    const std::vector<size_t> & get_indexed_first_arg(common::term first_arg) const;
+
+    size_t performance_count() const {
+	return performance_count_;
+    }
+
+    void increment_performance_count() const {
+	performance_count_++;
+    }
+
+private:
+    void add_index(size_t i);
+    void remove_index(size_t i);
+    void clear_index() {
+	for (size_t i = 0; i < NUM_TAGS; i++) index_[i].clear();
+	is_indexed_ = false;
+    }
+    void do_index() const;
+    std::vector<size_t> all_var_based_clauses() const;
+
+    interpreter_base *interp_;
+    std::vector<managed_clause> clauses_;
+    size_t num_clauses_;
+    mutable bool has_vars_;
+    mutable bool is_indexed_;
+    static const size_t NUM_TAGS = 1 << common::term::TAG_SIZE_BITS;
+    mutable std::unordered_map<size_t, std::vector<size_t> > index_[NUM_TAGS];
+    mutable std::vector<size_t> all_;
+    mutable size_t performance_count_;
+};
+	
 class predicate {
 public:
   inline predicate() = default;
   inline predicate(const predicate &other) = default;
-  inline predicate(const qname &qn) : qname_(qn), id_(0), with_vars_(false), num_clauses_(0),was_compiled_(false),ok_to_compile_(true), performance_count_(0) { }
+  inline predicate(interpreter_base &interp, const qname &qn) : qname_(qn), id_(0), clauses_(interp), was_compiled_(false),ok_to_compile_(true) { }
   inline const qname & qualified_name() const { return qname_; }
 
-  inline const std::vector<managed_clause> & clauses() const { return clauses_; }
+  inline const managed_clauses & clauses() const {
+      return clauses_;
+  }
 
-  inline bool empty() const { return num_clauses_ == 0; }
+  inline bool empty() const { return clauses_.num_clauses() == 0; }
   
-  void add_clause(interpreter_base &interp,
-		  common::term clause,
-		  clause_position pos = LAST_CLAUSE);
+  inline void add_clause(interpreter_base &interp,
+			 common::term clause,
+			 clause_position pos = LAST_CLAUSE);
+  inline void remove_clauses(const std::vector<size_t> &indexed) {
+      clauses_.remove_clauses(indexed);
+  }
+  inline bool remove_clause(common::term clause) {
+      return clauses_.remove_clause(clause);
+  }
 
-  size_t get_term_id(interpreter_base &interp, common::term first_arg) const;
-  const std::vector<managed_clause> & get_clauses(interpreter_base &interp, size_t term_id) const;
-  const std::vector<managed_clause> & get_clauses(interpreter_base &interp, common::term first_arg) const;
-
-  inline std::vector<managed_clause> & get_clauses() const
-      { return clauses_; }
-
-  inline size_t num_clauses() const { return num_clauses_; }
-
+  inline size_t num_clauses() const { return clauses_.num_clauses(); }
+    
   inline void clear()
   {
       clauses_.clear();
-      indexed_.clear();
-      with_vars_ = false;
-      clear_cache();
-      num_clauses_ = 0;
-  }
-
-  inline void clear_cache()
-  {
-      filtered_.clear();
-      term_id_.clear();
   }
 
   inline bool was_compiled() const {
@@ -136,33 +208,51 @@ public:
       ok_to_compile_ = on;
   }
 
-  bool matching_clauses(interpreter_base &interp, common::term head);
-  bool remove_clauses(interpreter_base &interp, common::term head, bool all);
+  size_t num_matched(common::term pattern, bool on_head) const {
+      return clauses_.num_matched(pattern, on_head);
+  }
 
+  void get_matched(common::term pattern, bool on_head, std::vector<size_t> &indices) {
+      clauses_.get_matched(pattern, on_head, indices);
+  }
+    
+
+  void get_matched(common::term pattern, bool on_head, common::term *clauses) const {
+      clauses_.get_matched(pattern, on_head, clauses);
+  }
+
+  void get_matched_first_arg(common::term first_arg, std::vector<common::term> &clauses) const {
+      clauses_.get_matched_first_arg(first_arg, clauses);
+  }
+
+  const std::vector<size_t> & get_indexed(common::term goal) {
+      return clauses_.get_indexed(goal);
+  }
+
+  const std::vector<managed_clause> & get_clauses() const {
+      return clauses_.get_clauses();
+  }
+
+  std::vector<managed_clause> & get_clauses() {
+      return clauses_.get_clauses();
+  }
+    
   size_t id() const { return id_; }
 
-  size_t performance_count() const { return performance_count_; }
-
-  void check_index(interpreter_base &interp);
+  size_t performance_count() const { return clauses_.performance_count(); }
 
 private:
-    bool matched_indexed_clause(interpreter_base &interp, common::term head);
-    managed_clause remove_indexed_clause(interpreter_base &interp, common::term head);
     friend class interpreter_base;
   
     void set_id(size_t identifier) { id_ = identifier; }
   
     qname qname_;
     size_t id_;
-    mutable std::vector<managed_clause> clauses_;
-    mutable std::unordered_map<common::term, std::vector<managed_clause> > indexed_;
-    mutable std::vector<std::vector<managed_clause> > filtered_;
-    mutable std::unordered_map<common::term, size_t> term_id_;
-    bool with_vars_;
-    size_t num_clauses_;
+
+    managed_clauses clauses_;
+
     bool was_compiled_;
     bool ok_to_compile_;
-    mutable size_t performance_count_;
 };
 
 class module_meta {
@@ -358,19 +448,44 @@ struct environment_t : public environment_base_t {
 
 struct meta_context;
 
+	// typedef bool (*backtrack_fn)(interpreter_base &interp);
 struct choice_point_t {
     environment_saved_t   ce;
     meta_context          *m;
+    // backtrack_fn          bt; // optional. used by backtrackable builtins
     code_point            cp;
     choice_point_t       *b;
     code_point            bp;
     size_t                tr;
     size_t                h; 
     choice_point_t       *b0;
+    size_t                num_choices; // Only used for naive interpreter
     common::term          qr; // Only used for naive interpreter (for now)
     qname                 pr; // (not used by WAM as WAM already knows this)
     size_t                arity;
-    common::term          ai[];
+    common::term          zi[];
+
+    common::term & ai(size_t i) {
+	return zi[num_choices+i];
+    }
+    common::term ai(size_t i) const {
+	return zi[num_choices+i];
+    }
+    common::term & choice(size_t i) {
+	return zi[i];
+    }
+    common::term choice(size_t i) const {
+	return zi[i];
+    }
+    const common::term * choices()  const {
+	return &zi[0];
+    }
+    common::term * choices() {
+	return &zi[0];
+    }
+    size_t num_extra() const {
+	return arity + num_choices;
+    }
 };
 
 // Standard environment (for naive interpreter)
@@ -479,6 +594,7 @@ class interpreter_base : public common::term_env {
     friend struct new_instance_context;
     friend class remote_execution_proxy;
     friend class predicate;
+    friend class managed_clauses;
 
 private:
     static const size_t STACK_BASE = 0x80000000000000;
@@ -500,6 +616,13 @@ public:
     inline void heap_set_size(size_t sz) {
         term_env::heap_set_size(sz);
 	set_register_hb(sz);
+    }
+
+    inline term deref(term t) const {
+	uint64_t cost = 0;
+	t = deref_with_cost(t, cost);
+	add_accumulated_cost(cost);
+	return t;
     }
     
     inline con_cell current_module() const { return current_module_; }
@@ -637,18 +760,18 @@ public:
     {
         term head = clause_head(clause);
 	if (!is_functor(head)) {
-	    return EMPTY_LIST;
+	    return term();
 	}
 	auto f = functor(head);
 	if (f == COLON) {
 	     head = arg(head, 1);
 	     if (!is_functor(head)) {
-	         return EMPTY_LIST;
+	         return term();
 	     }
 	     f = functor(head);
 	}
 	if (f.arity() <= 0) {
-	    return EMPTY_LIST;      
+	    return term();
 	}
 	return arg(head, 0);
     }
@@ -861,7 +984,7 @@ public:
 	    size_t id = program_predicates_.size() + 1;
 	    program_predicates_.push_back(qn);
 	    predicate &pred = program_db_[qn];
-	    pred = predicate(qn);
+	    pred = predicate(*this, qn);
 	    pred.set_id(id);
 
 	    // Enables a client to fill the predicate with clauses
@@ -883,7 +1006,7 @@ public:
 	size_t n = 0;
 	for (auto &p : program_db_) {
 	    auto &predicate = p.second;
-	    n += predicate.clauses().size();
+	    n += predicate.num_clauses();
 	}
 	return n;
     }
@@ -965,7 +1088,7 @@ public:
 
     class list_iterator : public common::term_iterator {
     public:
-	list_iterator(Env &env, const common::term t)
+	list_iterator(term_env &env, const common::term t)
             : common::term_iterator(env, t) { }
 
 	list_iterator begin() {
@@ -984,20 +1107,6 @@ public:
 
     inline void set_code(const qname &qn, const code_point &cp)
     {
-	con_cell us("user",0);
-	con_cell ff = functor("program_state",1);
-	qname myqn(us,ff);
-
-	if (code_db_.find(myqn) != code_db_.end()) {
-	    auto &ww1 = code_db_[myqn];
-
-	    if (ww1.is_builtin()) {
-		if (ww1.bn() != builtins::program_state_1) {
-		    int xyzzy = 42;
-		    (void)xyzzy;
-		}
-	    }
-	}
         code_db_[qn] = cp;
     }
 
@@ -1055,6 +1164,44 @@ public:
 	}
 	set_register_hb(old_hb);
 	return r;
+    }
+
+    inline bool can_unify_args(term head, const code_point &p)
+    {
+	static const common::con_cell colon(":",2);
+    
+	if (p.term_code().tag() == common::tag_t::STR) {
+	    term goal = p.term_code();
+	    if (functor(goal) == colon) {
+		goal = arg(goal, 1);
+	    }
+	    return can_unify(head, goal);
+	} else {
+	    // Otherwise this is an already disected call with
+	    // args. So unify with arguments.
+	    size_t n = num_of_args();
+	    bool fail = false;
+	    if (head == colon) {
+		head = arg(head, 1);
+	    }
+	    if (!is_functor(head)) {
+		return false;
+	    }
+	    // If the functor is an atom with no arguments, then
+	    // we're done.
+	    auto f = functor(head);
+	    if (f.arity() == 0) {
+		return true;
+	    }
+	    for (size_t i = 0; i < n; i++) {
+		auto arg_i = arg(head, i);
+		if (!can_unify(arg_i, a(i))) {
+		    fail = true;
+		    break;
+		}
+	    }
+	    return !fail;
+	}
     }
 
     inline int standard_order(const term a, const term b)
@@ -1224,6 +1371,12 @@ protected:
         return register_ai_[i];    
     }
 
+    inline term a(size_t i) const
+    {
+        return register_ai_[i];    
+    }
+
+    
     inline term * a_ptr(size_t i)
     {
         return &register_ai_[i];
@@ -1446,6 +1599,11 @@ protected:
         register_b_ = b;
     }
 
+    inline void cut_b(choice_point_t *b)
+    {
+	set_b(b);
+    }
+
     inline choice_point_t * b0() const
     {
         return register_b0_;
@@ -1536,7 +1694,7 @@ protected:
 	    if (b() == nullptr) {
 	        new_s = stack_;
   	    } else {
-	        new_s = base(b()) + words<term>()*b()->arity + words<choice_point_t>();
+	        new_s = base(b()) + words<term>()*b()->num_extra() + words<choice_point_t>();
 	    }
 	}
 	if (to_stack_relative_addr(new_s) + MAX_STACK_FRAME_WORDS
@@ -1564,7 +1722,7 @@ protected:
 	    if (b() == nullptr) {
 	        new_s = stack_;
   	    } else {
-	        new_s = base(b()) + words<term>()*b()->arity + words<choice_point_t>();
+	        new_s = base(b()) + words<term>()*b()->num_extra() + words<choice_point_t>();
 	    }
 	}
 
@@ -1610,13 +1768,14 @@ protected:
 	
     }
 
-    inline void allocate_choice_point(const code_point &cont)
+    inline choice_point_t * allocate_choice_point(const code_point &cont, size_t num_choices)
     {
         word_t *new_b0 = allocate_stack(true);
 	auto *new_b = reinterpret_cast<choice_point_t *>(new_b0);
 	new_b->arity = num_of_args_;
+        new_b->num_choices = num_choices;
 	for (size_t i = 0; i < num_of_args_; i++) {
-	    new_b->ai[i] = a(i);
+	    new_b->ai(i) = a(i);
 	}
 	new_b->ce = save_e();
 	new_b->m = register_m_;
@@ -1635,6 +1794,8 @@ protected:
 
         // std::cout << "allocate_choice_point b=" << new_b << " (prev=" << new_b->b << ")\n";
 	// std::cout << "allocate_choice_point saved qr=" << to_string(register_qr_) << "\n";
+
+	return new_b;
     }
 
     inline void deallocate_and_proceed()
@@ -1693,34 +1854,45 @@ protected:
 
     void unwind(size_t current_tr);
 
-    term get_first_arg()
+    bool equal(term a, term b) {
+	uint64_t cost = 0;
+	bool r = term_env::equal(a, b, cost);
+	add_accumulated_cost(cost);
+	return r;
+    }
+
+    term get_first_arg() const
     {
         if (num_of_args_ == 0) {
-	    return EMPTY_LIST;
+	    return term();
 	}
 	return deref(a(0));
     }
 
-    term get_first_arg(term goal)
+    term get_first_arg(term goal) const
     {
 	if (goal.tag() == common::tag_t::CON) {
-	    // This is a functor constant (probably set by WAM)
-	    // we need to use the argument register instead
-	    return get_first_arg();
+	    auto c = reinterpret_cast<con_cell &>(goal);
+	    if (c.arity() > 0) {
+		// This is a functor constant (probably set by WAM)
+		// we need to use the argument register instead
+		return get_first_arg();
+	    }
 	}
+	
         if (!is_functor(goal)) {
-	    return EMPTY_LIST;
+	    return term();
         }
 	auto f = functor(goal);
 	if (f == COLON) {
 	    goal = arg(goal, 1);
 	    if (!is_functor(goal)) {
-	        return EMPTY_LIST;
+	        return term();
 	    }
 	    f = functor(goal);
 	}
 	if (f.arity() <= 0) {
-	    return EMPTY_LIST;
+	    return term();
 	}
 	return arg(goal, 0);
     }
@@ -1765,7 +1937,7 @@ protected:
     inline void reset_accumulated_cost(uint64_t value = 0)
         { accumulated_cost_ = value; }
 
-    inline void add_accumulated_cost(uint64_t cost)
+    inline void add_accumulated_cost(uint64_t cost) const
         { accumulated_cost_ += cost;
           if (accumulated_cost_ >= maximum_cost_) {
 	      throw interpreter_exception_out_of_funds(
@@ -1903,7 +2075,7 @@ private:
     std::function<void ()> debug_check_fn_;
 
     // Keep track of accumulated cost while interpreter is executing
-    uint64_t accumulated_cost_;
+    mutable uint64_t accumulated_cost_;
 
     // Maximum cost allowed
     uint64_t maximum_cost_;
@@ -2215,179 +2387,6 @@ private:
     std::string name_;
 };
 
-inline void predicate::add_clause(interpreter_base &interp, common::term clause0, clause_position pos)  {
-    performance_count_++;
-    managed_clause clause(clause0, interp.cost(clause0), clauses_.size());
-    switch (pos) {
-    case FIRST_CLAUSE: clauses_.insert(clauses_.begin(), clause); break;
-    case LAST_CLAUSE: clauses_.push_back(clause); break;
-    }
-    auto first_arg_index = interp.arg_index(interp.clause_first_arg(clause0));
-
-    if (first_arg_index.tag().is_ref()) {
-        with_vars_ = true;
-	indexed_.clear();
-        filtered_.clear();
-	term_id_.clear();
-    }
-    if (!with_vars_) {
-        auto &idx = indexed_[first_arg_index];
-	if (pos == FIRST_CLAUSE) {
-	    idx.insert(idx.begin(), clause);
-	} else {
-	    idx.push_back(clause);
-	}
-    }
-    clear_cache();
-    num_clauses_++;
-}
-
-inline bool predicate::matched_indexed_clause(interpreter_base &interp, common::term head) {
-    auto arg_index = interp.arg_index(interp.clause_first_arg(head));
-    auto &idx = indexed_[arg_index];
-    for (auto it = idx.begin(); it != idx.end();) {
-        auto idx_clause = (*it).clause();
-        auto idx_clause_head = interp.clause_head(idx_clause);
-        if (interp.can_unify(idx_clause_head, head)) {
-	    return true;
-        } else {
-            ++it;
-        }
-    }
-    return false;
-}
-
-inline managed_clause predicate::remove_indexed_clause(interpreter_base &interp, common::term head)
-{
-    auto arg_index = interp.arg_index(interp.clause_first_arg(head));
-    auto &idx = indexed_[arg_index];
-    for (auto it = idx.begin(); it != idx.end();) {
-        performance_count_++;
-        auto mclause = (*it);
-        auto idx_clause = mclause.clause();
-        auto idx_clause_head = interp.clause_head(idx_clause);
-        if (interp.can_unify(idx_clause_head, head)) {
-            it = idx.erase(it);
-	    return mclause;
-        } else {
-            ++it;
-        }
-    }
-    return managed_clause(common::term(), 0, 0);
-}
-
-inline bool predicate::matching_clauses(interpreter_base &interp, common::term head) {
-    auto arg = interp.clause_first_arg(head);
-    if (with_vars_ || arg.tag().is_ref()) {
-	for (auto it = clauses_.begin(); it != clauses_.end();) {
-            performance_count_++;
-	    auto mclause = *it;
-	    if (mclause.is_erased()) {
-	        ++it;
-	        continue;
-	    }
-	    auto clause = mclause.clause();
-	    auto clause_head = interp.clause_head(clause);
-	    if (interp.can_unify(clause_head, head)) {
-		return true;
-	    } else {
-	        ++it;
-	    }
-	}
-	return false;
-    } else {
-	return matched_indexed_clause(interp, head);
-    }
-}
-
-inline bool predicate::remove_clauses(interpreter_base &interp, common::term head, bool all)
-{
-    auto arg = head == common::term() ? head : interp.clause_first_arg(head);
-    bool found = false;
-    if (with_vars_ || arg == common::term() || arg.tag().is_ref()) {
-	for (auto it = clauses_.begin(); it != clauses_.end();) {
-            performance_count_++;
-	    auto mclause = *it;
-	    if (mclause.is_erased()) {
-	        ++it;
-	        continue;
-	    }
-	    auto clause = mclause.clause();
-	    auto clause_head = interp.clause_head(clause);
-	    if (head == common::term() || interp.can_unify(clause_head, head)) {
-	        if (!found) {
-	            found = true;
-		    filtered_.clear();
-		    term_id_.clear();
-		}
-		it = clauses_.erase(it);
-		remove_indexed_clause(interp, clause_head);
-		num_clauses_--;
-		if (!all) break;
-	    } else {
-	        ++it;
-	    }
-	}
-    } else {
-        // Update index and remove clause
-        bool cont = false;
-        do {
-    	    auto mclause = remove_indexed_clause(interp, head);
-	    cont = all;
-	    if (mclause.clause() != common::term()) {
-	        found = true;
-	        clauses_[mclause.ordinal()].erase();
-		num_clauses_--;
-	    } else {
-	        cont = false;
-	    }
-	} while (cont);
-    }
-    if (!found && !all) {
-        return false;
-    }
-    clear_cache();
-    return true;
-}
-
-inline size_t predicate::get_term_id(interpreter_base &interp, common::term arg_index) const
-{
-    auto it = term_id_.find(arg_index);
-    performance_count_++;
-    if (it == term_id_.end()) {
-        size_t new_id = filtered_.size();
-	term_id_[arg_index] = new_id;
-	filtered_.resize(filtered_.size()+1);
-	auto &v = filtered_[new_id];
-	bool is_unknown = with_vars_ || arg_index.tag().is_ref();
-	auto &src_clauses = is_unknown ? clauses_ : indexed_[arg_index];
-	for (auto &mclause : src_clauses) {
-            performance_count_++;
-	    if (mclause.is_erased()) {
-	        continue;
-	    }
-	    auto farg_index = interp.arg_index(interp.clause_first_arg(mclause.clause()));
-	    if (!interp.definitely_inequal(farg_index, arg_index)) {
-	        v.push_back(mclause);
-	    }
-	}
-	return new_id;
-    }
-    return it->second;
-}
-
-inline const std::vector<managed_clause> & predicate::get_clauses(interpreter_base &interp, size_t term_id) const {
-    return filtered_[term_id];
-}
-
-inline const std::vector<managed_clause> & predicate::get_clauses(interpreter_base &interp, common::term first_arg) const {
-    static const std::vector<managed_clause> NOT_FOUND;
-    performance_count_++;
-    auto arg_index = interp.arg_index(first_arg);
-    size_t term_id = get_term_id(interp, arg_index);
-    return filtered_[term_id];
-}
-
 template<> inline environment_naive_t * interpreter_base::allocate_environment<ENV_NAIVE>()
 {
     auto new_ee = reinterpret_cast<environment_naive_t *>(allocate_stack(true));
@@ -2432,6 +2431,12 @@ template<> inline environment_frozen_t * interpreter_base::allocate_environment<
     save_state_fn_(this);
     
     return new_ef;
+}
+
+inline void predicate::add_clause(interpreter_base &interp,
+			     common::term clause, clause_position pos) {
+    managed_clause mclause(clause, interp.cost(clause));
+    return clauses_.add_clause(mclause, pos);
 }
 
 inline void interpreter_base::check_frozen()
@@ -2498,6 +2503,134 @@ inline void interpreter_base::check_frozen()
 	}
     }
     heap_clear_watched();
+}
+
+inline size_t managed_clauses::num_matched(common::term pattern, bool on_head) const
+{
+    auto pattern_head = interp_->clause_head(pattern);
+    auto pattern_body = interp_->clause_body(pattern);
+    auto &index = get_indexed(pattern_head);
+    size_t n = index.size();
+    size_t j = 0;
+    for (size_t i = 0; i < n; i++) {
+	auto ii = index[i];
+	if (ii == std::numeric_limits<size_t>::max()) {
+	    continue;
+	}
+	increment_performance_count();
+	auto &mclause =  get_clause(ii);
+	if (mclause.is_erased()) {
+	    continue;
+	}
+	auto clause = mclause.clause();
+	auto clause_head = interp_->clause_head(clause);
+	auto clause_body = interp_->clause_body(clause);
+
+	if (interp_->can_unify_args(clause_head, code_point(pattern_head))) {
+	    if (on_head || interp_->can_unify(clause_body, pattern_body)) {
+		j++;
+	    }
+	}
+    }
+    return j;
+}
+
+inline void managed_clauses::get_matched(common::term pattern, bool on_head, common::term *clauses)  const
+{
+    auto pattern_head = interp_->clause_head(pattern);
+    auto pattern_body = interp_->clause_body(pattern);
+    auto &index = get_indexed(pattern_head);
+    size_t n = index.size();
+    size_t j = 0;
+    for (size_t i = 0; i < n; i++) {
+	increment_performance_count();
+	auto ii = index[i];
+	if (ii == std::numeric_limits<size_t>::max()) {
+	    continue;
+	}
+	auto &mclause =  get_clause(ii);
+	if (mclause.is_erased()) {
+	    continue;
+	}
+	auto clause = mclause.clause();
+	auto clause_head = interp_->clause_head(clause);
+	auto clause_body = interp_->clause_body(clause);
+	if (interp_->can_unify_args(clause_head, code_point(pattern_head))) {
+	    if (on_head || interp_->can_unify(clause_body, pattern_body)) {
+		clauses[j] = clause;
+		j++;
+	    }
+	}
+    }
+}
+
+inline void managed_clauses::get_matched(common::term pattern, bool on_head, std::vector<size_t> &indices) const {
+    auto pattern_head = interp_->clause_head(pattern);
+    auto pattern_body = interp_->clause_body(pattern);
+    auto &index = get_indexed(pattern_head);
+    size_t n = index.size();
+    for (size_t i = 0; i < n; i++) {
+	increment_performance_count();
+	size_t ii = index[i];
+	if (ii == std::numeric_limits<size_t>::max()) {
+	    continue;
+	}
+	auto &mclause =  get_clause(ii);
+	if (mclause.is_erased()) {
+	    continue;
+	}
+	auto clause = mclause.clause();
+	auto clause_head = interp_->clause_head(clause);
+	auto clause_body = interp_->clause_body(clause);
+	if (interp_->can_unify_args(clause_head, code_point(pattern_head))) {
+	    if (on_head || interp_->can_unify(clause_body, pattern_body)) {
+		indices.push_back(index[i]);
+	    }
+	}
+    }
+    
+}
+
+inline void managed_clauses::get_matched_first_arg(common::term first_arg, std::vector<common::term> &clauses) const {
+    auto &index = get_indexed_first_arg(first_arg);
+    size_t n = index.size();
+    for (size_t i = 0; i < n; i++) {
+	increment_performance_count();
+	size_t ii = index[i];
+	if (ii == std::numeric_limits<size_t>::max()) {
+	    continue;
+	}
+	auto &mclause =  get_clause(ii);
+	if (mclause.is_erased()) {
+	    continue;
+	}
+	auto clause = mclause.clause();
+	clauses.push_back(clause);
+    }    
+}
+
+inline const std::vector<size_t> & managed_clauses::get_indexed(common::term goal) const {
+    auto first_arg = interp_->get_first_arg(goal);
+    return get_indexed_first_arg(first_arg);
+}
+
+inline const std::vector<size_t> & managed_clauses::get_indexed_first_arg(common::term first_arg) const {
+    if (first_arg == common::term()) {
+	return all_;
+    }
+    if (!is_indexed_) do_index();
+    auto tag = first_arg.tag();
+    if (tag.is_ref()) {
+	return all_;
+    }
+    if (has_vars_) {
+	return all_;
+    }
+    auto tag_value = static_cast<size_t>(tag);
+    auto &second_indexing_map = index_[tag_value];
+    auto h = interp_->simple_hash(first_arg);
+    auto &indexed = second_indexing_map[h];	
+    return indexed;
 }
 
 }}
