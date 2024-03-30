@@ -158,7 +158,7 @@ template<size_t NumBits, typename T> inline void camera<NumBits,T>::take_picture
 
     static const T c_1_2 = T(1)/2;
     static const T c_minus_1_2 = -(T(1)/2);
-    size_t total_cnt = 0;
+    // size_t total_cnt = 0;
 
     // l: Base side of pyramid (our looking window is like a pyramid)
     // Volume of pyramid: V = l^2*h / 3 => l = sqrt(3*V/h)
@@ -185,7 +185,7 @@ template<size_t NumBits, typename T> inline void camera<NumBits,T>::take_picture
 
     std::unordered_set<key_t,key_hash> visited_;
 
-    int num_cubes = 0;
+    // int num_cubes = 0;
 
     for (auto d = ds/2; d < h; d += ds/2) {
 
@@ -223,12 +223,12 @@ template<size_t NumBits, typename T> inline void camera<NumBits,T>::take_picture
 
 		visited_.insert(key);
 
-		num_cubes++;
+		// num_cubes++;
 
 		// Iterate through all stars in this bucket
 		
 		for (auto id : galaxy_.get_stars_ids(xp64_i, yp64_i, zp64_i) ) {
-		    total_cnt++;
+  		    // total_cnt++;
 		    if (star_ids.find(id) != star_ids.end()) {
 			continue;
 		    }

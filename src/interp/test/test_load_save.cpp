@@ -33,7 +33,7 @@ int main( int argc, char *argv[] )
     try {
       boost::filesystem::create_directories(src_file.parent_path());
       boost::filesystem::copy_file(src_file0, src_file,
-		   boost::filesystem::copy_option::overwrite_if_exists);
+		   boost::filesystem::copy_options::overwrite_existing);
     } catch (std::exception &ex) {
 	std::cout << "Error: " << ex.what() << std::endl;
 	return 1;

@@ -774,7 +774,7 @@ bool address_book::operator == (const address_book &other) const
     auto it1 = id_to_entry_.begin();
     auto it2 = other.id_to_entry_.begin();
     
-    size_t index = 0;
+    // size_t index = 0;
 
     while (it1 != id_to_entry_.end()) {
 	if (it2 == other.id_to_entry_.end()) {
@@ -790,7 +790,7 @@ bool address_book::operator == (const address_book &other) const
 
 	++it1;
 	++it2;
-	++index;
+	// ++index;
     }
 
     return it2 == other.id_to_entry_.end();

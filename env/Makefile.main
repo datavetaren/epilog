@@ -3,9 +3,9 @@ EXE_EXT :=
 LIB_EXT := .a
 LINK := g++
 CC := g++
-CCFLAGS := -c -g -Werror -Wall -std=c++11 -pthread
+CCFLAGS := -c -g -Werror -Wall -std=c++14 -pthread
 ifeq ($(NODEBUG),1)
-    CCFLAGS := -c -O3 -Werror -Wall -std=c++11 -pthread
+    CCFLAGS := -c -O3 -Werror -Wall -std=c++14 -pthread
 endif
 CCFLAGS += $(CC_EXTRA)
 CCINC := -I
@@ -25,15 +25,15 @@ ifeq ($(UNAME),Darwin)
    DBG := gtimeout 1000s
 endif
 
-GCCLIBPATH := $(shell g++ -Xlinker -v  2>&1 |sed -n 's/^[[:space:]]*\(\/.*\)/\1/p')
-GCCLIBDIRS := $(strip $(foreach d,$(GCCLIBPATH),$(filter -L%, $(d))))
-GCCLIBDIRS := $(foreach d, $(GCCLIBDIRS), $(subst -L,,$(d)))
+GCCLIBPATH := $(shell g++ -print-search-dirs 2>&1 |sed -n 's/libraries: =\(.*\)/\1/p')
+GCCLIBPATH := $(GCCLIBPATH):$(LIBRARY_PATH)
+GCCLIBDIRS := $(subst :, ,$(GCCLIBPATH))
 BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
 ifeq ($(BOOSTDIR),)
-    BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBPATH), $(wildcard $(d)/libboost_filesystem.a)))))
+    BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
 endif
 
-HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBPATH), $(wildcard $(d)/*boost_thread-mt*)))
+HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/*boost_thread-mt*)))
 BOOST_THREAD_LIB := $(if $(HAS_BOOST_THREAD_MT),boost_thread-mt,boost_thread)
 EXT := $(subst boost_thread, $(BOOST_THREAD_LIB), $(EXT))
 

@@ -23,7 +23,7 @@ void log::printf(const std::string &section, const char *format, ...) {
    std::ofstream fos(p.string(), std::fstream::out | std::fstream::app );
    va_list args;
    va_start(args, format);
-   vsprintf(buffer, format, args);
+   vsnprintf(buffer, sizeof(buffer), format, args);
    fos << buffer << std::endl;
    fos.flush();
 }

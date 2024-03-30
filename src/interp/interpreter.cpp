@@ -206,8 +206,6 @@ bool interpreter::execute(const term query, bool silent)
     using namespace epilog::common;
 
     bool do_new_instance = false;
-    static int cnt = 0;
-    ++cnt;
 
     if (heap_size() == 0) {
 	new_cell0(con_cell("start",0));

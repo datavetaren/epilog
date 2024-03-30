@@ -4,7 +4,11 @@
 #define _pow_siphash_hpp
 
 #include <stdint.h>
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#else
 #include <immintrin.h>
+#endif
 #include <assert.h>
 #include "checked_cast.hpp"
 #include "blake2.hpp"
@@ -122,6 +126,16 @@ inline static void siphash_1(const siphash_keys &keys, const uint64_t nonce, uin
 #define SIP_ROT21(x) _mm_or_si128(_mm_slli_epi64(x,21),_mm_srli_epi64(x,43))
 #define SIP_ROT32(x) _mm_shuffle_epi32  (x, _MM_SHUFFLE(2,3,0,1))
 
+#elif defined __aarch64__
+
+#define SIP_ADD(a, b) vaddq_s64(a, b)
+#define SIP_XOR(a, b) vreinterpretq_s64_s32(veorq_s32(vreinterpretq_s32_s64(a), vreinterpretq_s32_s64(b)))
+#define SIP_ROT13(x) vorrq_s32(vshlq_s64((x), vdupq_n_s64(13)),vshlq_u64(vreinterpretq_s64_u64(x), vdupq_n_s64(-51)))
+#define SIP_ROT16(x) vorrq_s32(vshlq_s64((x), vdupq_n_s64(16)),vshlq_u64(vreinterpretq_s64_u64(x), vdupq_n_s64(-48)))
+#define SIP_ROT17(x) vorrq_s32(vshlq_s64((x), vdupq_n_s64(17)),vshlq_u64(vreinterpretq_s64_u64(x), vdupq_n_s64(-47)))
+#define SIP_ROT21(x) vorrq_s32(vshlq_s64((x), vdupq_n_s64(21)),vshlq_u64(vreinterpretq_s64_u64(x), vdupq_n_s64(-43)))
+#define SIP_ROT32(x) vorrq_s32(vshlq_s64((x), vdupq_n_s64(32)),vshlq_u64(vreinterpretq_s64_u64(x), vdupq_n_s64(-32)))
+
 #endif
 
 #define SIPROUNDXN \
@@ -233,11 +247,20 @@ static inline void siphash_8(const siphash_keys &keys, uint64_t in1, uint64_t in
   */
 }
 
-#elif defined __SSE2__ || defined _M_AMD64 || defined _M_X64
+#elif defined __SSE2__ || defined _M_AMD64 || defined _M_X64 || __aarch64__
 
+#if defined __aarch64__
+#define _mm_set1_epi64x(i) vdupq_n_s64(i)
+#define _mm_set_epi64x(a,b) vcombine_s64(vcreate_s64(b), vcreate_s64(a))
+#define _mm_extract_epi64(x,i) vgetq_lane_s64((x), (i))
+#define SIPHASH_REGTYPE int64x2_t
+#else
+#define SIPHASH_REGTYPE	__m128i
+#endif
+    
 // 2-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
 static inline void siphash_2(const siphash_keys &keys, uint64_t in1, uint64_t in2, uint64_t &out1, uint64_t &out2) {
-  __m128i v0, v1, v2, v3, mi;
+  SIPHASH_REGTYPE v0, v1, v2, v3, mi;
   v0 = _mm_set1_epi64x(keys.k0());
   v1 = _mm_set1_epi64x(keys.k1());
   v2 = _mm_set1_epi64x(keys.k2());
@@ -257,7 +280,7 @@ static inline void siphash_2(const siphash_keys &keys, uint64_t in1, uint64_t in
 }
 
 static inline void siphash_4(const siphash_keys &keys, uint64_t in1, uint64_t in2, uint64_t in3, uint64_t in4, uint64_t &out1, uint64_t &out2, uint64_t &out3, uint64_t &out4) {
-  __m128i v0, v1, v2, v3, mi, v4, v5, v6, v7, m2;
+  SIPHASH_REGTYPE v0, v1, v2, v3, mi, v4, v5, v6, v7, m2;
   v4 = v0 = _mm_set1_epi64x(keys.k0());
   v5 = v1 = _mm_set1_epi64x(keys.k1());
   v6 = v2 = _mm_set1_epi64x(keys.k2());

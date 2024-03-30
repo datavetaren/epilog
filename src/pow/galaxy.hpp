@@ -179,7 +179,7 @@ template<size_t NumBits, typename T> void galaxy<NumBits,T>::init(size_t num_sta
 }
 
 template<size_t NumBits,typename T> void galaxy<NumBits,T>::status() const {
-    size_t cnt = 0;
+    // size_t cnt = 0;
     size_t max_bucket_size = 0;
     for (size_t i = 0; i < N; i++) {
 	for (size_t j = 0; j < N; j++) {
@@ -198,7 +198,7 @@ template<size_t NumBits,typename T> void galaxy<NumBits,T>::status() const {
 		    assert(i == x_bucket);
 		    assert(j == y_bucket);
 		    assert(k == z_bucket);
-		    cnt++;
+		    // cnt++;
 		}
 	    }
 	}

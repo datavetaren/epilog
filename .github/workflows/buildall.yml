@@ -9,6 +9,9 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
+    env:
+      CPATH=/opt/homebrew/include
+      LIBRARY_PATH=/opt/homebrew/lib
     steps:
     - uses: actions/checkout@v2
     - name: boost
@@ -31,7 +34,7 @@ jobs:
         overwrite: true
         body: "Latest build of Epilog"
   build-linux:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: apt
@@ -45,13 +48,13 @@ jobs:
     - name: build
       run: make all
     - name: zip
-      run: cd bin && zip -r epilog_linux_ubuntu_18_latest.zip epilogd epilog-data
+      run: cd bin && zip -r epilog_linux_ubuntu_22_latest.zip epilogd epilog-data
     - name: release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: bin/epilog_linux_ubuntu_18_latest.zip
-        asset_name: epilog_linux_ubuntu_18_latest.zip
+        file: bin/epilog_linux_ubuntu_22_latest.zip
+        asset_name: epilog_linux_ubuntu_22_latest.zip
         tag: ${{ github.ref }}
         overwrite: true
         body: "Latest build of Epilog"
@@ -62,7 +65,7 @@ jobs:
     - name: download boost
       shell: powershell
       run: |
-        $uri = 'http://www.datavetaren.se/boost/boost_1_71_0_msvc14_2.zip'
+        $uri = 'http://www.blecktornet.se/boost/boost_1_84_0.zip'
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $uri -OutFile C:\boost.zip -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
     - name: install boost
@@ -77,13 +80,13 @@ jobs:
     - name: zip
       shell: cmd
       run: |
-        cd bin && "C:\Program Files\7-Zip\7z.exe" a -tzip -r epilog_windows_10_latest.zip epilogd.exe epilog-data
+        cd bin && "C:\Program Files\7-Zip\7z.exe" a -tzip -r epilog_windows_11_latest.zip epilogd.exe epilog-data
     - name: release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: bin/epilog_windows_10_latest.zip
-        asset_name: epilog_windows_10_latest.zip
+        file: bin/epilog_windows_11_latest.zip
+        asset_name: epilog_windows_11_latest.zip
         tag: ${{ github.ref }}
         overwrite: true
         body: "Latest build of Epilog"

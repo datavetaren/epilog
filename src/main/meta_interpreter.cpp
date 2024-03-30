@@ -296,7 +296,6 @@ bool meta_interpreter::erase_all_0(interpreter_base &interp0, size_t arity, term
     for (boost::filesystem::directory_iterator it(root_dir); it != end; ++it) {
 	if (boost::starts_with(it->path().filename().string(), "wallet_") ||
 	    boost::starts_with(it->path().filename().string(), "node_")) {
-	    boost::system::error_code ec;
 	    boost::filesystem::remove_all(it->path());
 	}
     }

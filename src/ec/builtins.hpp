@@ -226,7 +226,7 @@ private:
 				   public_key &pub_raw);
     static term create_public_key(interpreter_base &interp,
 				  public_key &pub_raw);
-    static bool get_address(public_key &pubkey, uint8_t address[20]);
+    static bool get_address(public_key &pubkey, uint8_t address[25]);
     static bool compute_signature(interpreter_base &interp,
 				  uint8_t hashed_data[32],
 				  private_key &priv_raw,

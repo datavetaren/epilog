@@ -281,8 +281,8 @@ void readline::enter_read()
     ignore_callback(true);
     write(STDOUT, "\033[6n", 4);
     char ch;
-    for (size_t i = 0; ::read(STDIN, &ch, 1) == 1 && ch != ';'; i++) { }
-    for (size_t i = 0; ::read(STDIN, &ch, 1) == 1 && ch != 'R'; i++) {
+    while (::read(STDIN, &ch, 1) == 1 && ch != ';') { }
+    while (::read(STDIN, &ch, 1) == 1 && ch != 'R') {
 	if (ch >= '0' && ch <= '9') {
 	    start_column_ *= 10;
 	    start_column_ += ch - '0';

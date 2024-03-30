@@ -311,12 +311,10 @@ std::string term_emitter::name_ref(ref_cell r) const
 
     // First character must be [A-Z].
     std::string s;
-    size_t i = 0;
 
     while (index >= 26) {
 	size_t digit = index % sizeof(ALPHABET);
 	s += ALPHABET[digit];
-	i++;
 	index /= sizeof(ALPHABET);
     }
 
