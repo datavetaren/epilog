@@ -19,9 +19,8 @@ define err
     $(info Requirements:
            1. sed command
            2. g++ with C++14 support
-           3. pthread support
-           4. Boost version $(BOOST_REQ_STR) or later
-           5. libsecp256k1-zkp (git clone https://github.com/datavetaren/secp256k1-zkp)
+           3. Boost version $(BOOST_REQ_STR) or later
+           4. libsecp256k1-zkp (git clone https://github.com/datavetaren/secp256k1-zkp)
 	      Install this parallel to epilog, so that
 	      git/epilog/src
 	      git/sec256k1-zkp/ )
@@ -65,12 +64,12 @@ endif
 #
 # Check for pthread
 #
-
-CHECK_PTHREAD := $(shell echo "\#include <pthread.h>\nint main(int argc, char *argv[]) { (void)pthread_self(); return 0; }" >/tmp/check_pthread.cpp; g++ -std=c++14 -lpthread 2>&1 /tmp/check_pthread.cpp -o /tmp/check_phtread.out)
-
-ifneq "$(CHECK_PTHREAD)" ""
-   $(call err, Error while checking pthread. Please check if pthread.h is available and link against it.)
-endif
+#
+# CHECK_PTHREAD := $(shell echo "\#include <pthread.h>\nint main(int argc, char *argv[]) { (void)pthread_self(); return 0; }" >/tmp/check_pthread.cpp; g++ -std=c++14 -lpthread 2>&1 /tmp/check_pthread.cpp -o /tmp/check_phtread.out)
+#
+# ifneq "$(CHECK_PTHREAD)" ""
+#    $(call err, Error while checking pthread. Please check if pthread.h is ava# ilable and link against it.)
+# endif
 
 #
 # Check for BOOST
