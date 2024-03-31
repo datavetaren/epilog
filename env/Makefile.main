@@ -7,6 +7,7 @@ CCFLAGS := -c -g -Werror -Wall -std=c++14 -pthread
 ifeq ($(NODEBUG),1)
     CCFLAGS := -c -O3 -Werror -Wall -std=c++14 -pthread
 endif
+CCFLAGS += -I /usr/local/include
 CCFLAGS += $(CC_EXTRA)
 CCINC := -I
 CCOUT := -o
@@ -24,6 +25,9 @@ endif
 ifeq ($(UNAME),Darwin)
    DBG := gtimeout 1000s
 endif
+
+$(info HELLO $(shell g++ -E -x c++ - -v </dev/null))
+$(error stop this)
 
 GCCLIBPATH := $(shell g++ -print-search-dirs 2>&1 |sed -n 's/libraries: =\(.*\)/\1/p')
 GCCLIBPATH := $(GCCLIBPATH):$(LIBRARY_PATH)
