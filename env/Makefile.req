@@ -79,7 +79,7 @@ CHECK_BOOST := $(shell echo "\#include <boost/version.hpp>\nint main(int argc, c
 
 $(info $(BOOST_INCLUDE))
 
-$(shell g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
+DUMMY := $(shell g++ -I $(BOOST_INCLUDE) -std=c++14 /tmp/check_boost.cpp -o /tmp/check_boost.out)
 
 ifneq "$(CHECK_BOOST)" ""
    $(call err, Couldn't find BOOST. Please download and install BOOST v$(BOOST_REQ_STR) or later.)
