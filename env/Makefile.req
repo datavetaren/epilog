@@ -75,13 +75,13 @@ endif
 # Check for BOOST
 #
 
-CHECK_BOOST := $(shell echo "\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_boost.cpp; g++ -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
+CHECK_BOOST := $(shell echo "\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_boost.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
 
 ifneq "$(CHECK_BOOST)" ""
    $(call err, Couldn't find BOOST. Please download and install BOOST v$(BOOST_REQ_STR) or later.)
 endif
 
-CHECK_BOOST_VERSION := $(shell echo "\#include <stdio.h>\n\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { printf(\"version %s\", BOOST_LIB_VERSION); return !(BOOST_VERSION >= $(BOOST_REQ)); }" >/tmp/check_boost_ver.cpp; g++ -std=c++14 2>&1 /tmp/check_boost_ver.cpp -o /tmp/check_boost_ver.out; /tmp/check_boost_ver.out; echo exit is $$?)
+CHECK_BOOST_VERSION := $(shell echo "\#include <stdio.h>\n\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { printf(\"version %s\", BOOST_LIB_VERSION); return !(BOOST_VERSION >= $(BOOST_REQ)); }" >/tmp/check_boost_ver.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost_ver.cpp -o /tmp/check_boost_ver.out; /tmp/check_boost_ver.out; echo exit is $$?)
 
 ifeq "$(findstring exit is 0, $(CHECK_BOOST_VERSION))" ""
    FOUND_VER := $(shell echo $(CHECK_BOOST_VERSION) | sed -n 's/.*version \([[:digit:]]*_[[:digit:]]*\).*/\1/p')
