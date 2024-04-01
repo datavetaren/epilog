@@ -26,7 +26,7 @@ ifeq ($(UNAME),Darwin)
    DBG := gtimeout 1000s
 endif
 
-$(info HELLO $(shell g++ -E -x c++ - -v </dev/null))
+$(info HELLO $(shell env))
 $(error stop this)
 
 GCCLIBPATH := $(shell g++ -print-search-dirs 2>&1 |sed -n 's/libraries: =\(.*\)/\1/p')
