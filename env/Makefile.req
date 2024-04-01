@@ -77,15 +77,6 @@ endif
 
 CHECK_BOOST := $(shell echo "\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_boost.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
 
-$(info $(BOOST_INCLUDE))
-
-DUMMY := $(shell g++ -I $(BOOST_INCLUDE) -std=c++14 /tmp/check_boost.cpp -o /tmp/check_boost.out)
-
-DUMMY2 := $(shell /tmp/check_boost.out)
-
-$(info hello1 $(DUMMY))
-$(info hello2 $(DUMMY2))
-
 ifneq "$(CHECK_BOOST)" ""
    $(call err, Couldn't find BOOST. Please download and install BOOST v$(BOOST_REQ_STR) or later.)
 endif
