@@ -7,7 +7,6 @@ CCFLAGS := -c -g -Werror -Wall -std=c++14 -pthread
 ifeq ($(NODEBUG),1)
     CCFLAGS := -c -O3 -Werror -Wall -std=c++14 -pthread
 endif
-CCFLAGS += -I /usr/local/include
 CCFLAGS += $(CC_EXTRA)
 CCINC := -I
 CCOUT := -o
@@ -26,20 +25,22 @@ ifeq ($(UNAME),Darwin)
    DBG := gtimeout 1000s
 endif
 
-$(info HELLO $(shell env))
-$(error stop this)
+BOOST_ROOT := $(shell brew --cellar)/boost/$(shell ls $(shell brew --cellar)/boost)
+BOOST_INCLUDE := $(BOOST_ROOT)/include
 
 GCCLIBPATH := $(shell g++ -print-search-dirs 2>&1 |sed -n 's/libraries: =\(.*\)/\1/p')
 GCCLIBPATH := $(GCCLIBPATH):$(LIBRARY_PATH)
 GCCLIBDIRS := $(subst :, ,$(GCCLIBPATH))
 BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
 ifeq ($(BOOSTDIR),)
-    BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
+    BOOSTDIR := $(BOOST_ROOT/lib
 endif
 
 HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/*boost_thread-mt*)))
 BOOST_THREAD_LIB := $(if $(HAS_BOOST_THREAD_MT),boost_thread-mt,boost_thread)
 EXT := $(subst boost_thread, $(BOOST_THREAD_LIB), $(EXT))
+
+CCINC := $INCDIR) $(BOOST_INCLUDE)
 
 ifneq ($(INCDIR),)
    CCFLAGS := $(CCFLAGS) $(foreach d, $(INCDIR), $(CCINC) $(d))
