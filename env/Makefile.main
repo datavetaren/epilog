@@ -7,6 +7,9 @@ CCFLAGS := -c -g -Werror -Wall -std=c++14
 ifeq ($(NODEBUG),1)
     CCFLAGS := -c -O3 -Werror -Wall -std=c++14
 endif
+ifeq ($(shell uname -m),x86_64)
+    CCFLAGS += -msse4.1
+endif
 CCFLAGS += $(CC_EXTRA)
 CCINC := -I
 CCOUT := -o
@@ -29,17 +32,25 @@ ifeq ($(UNAME),Darwin)
     BOOST_ROOT := $(shell brew --cellar)/boost/$(shell ls $(shell brew --cellar)/boost)
 endif
 
-BOOST_INCLUDE := $(BOOST_ROOT)/include
-
-BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
-ifeq ($(BOOSTDIR),)
-    BOOSTDIR := $(BOOST_ROOT)/lib
-endif
-
 GCCLIBPATH := $(shell g++ -print-search-dirs 2>&1 |sed -n 's/libraries: =\(.*\)/\1/p')
 GCCLIBDIRS := $(subst :, ,$(GCCLIBPATH))
 
-GCCLIBDIRS += $(BOOSTDIR)
+BOOST_LIB := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
+ifeq ($(BOOST_LIB),)
+ifneq ($(BOOST_ROOT),)
+    BOOST_LIB := $(BOOST_ROOT)/lib
+endif
+endif
+
+ifeq ($(BOOST_ROOT),)
+    BOOST_INCLUDE := $(dir $(firstword $(wildcard /usr/include/boost/version.hpp)))
+endif
+
+ifeq ($(BOOST_INCLUDE),)
+    BOOST_INCLUDE := $(BOOST_ROOT)/include
+endif
+
+GCCLIBDIRS += $(BOOST_LIB)
 
 HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/*boost_thread-mt*)))
 BOOST_THREAD_LIB := $(if $(HAS_BOOST_THREAD_MT),boost_thread-mt,boost_thread)
@@ -117,7 +128,7 @@ SCRIPT_EXE_FILES := $(addprefix $(BIN)/script/$(SUBDIR)/, $(SCRIPT_CPP_FILES:$(S
 SCRIPT_OK_FILES := $(addprefix $(BIN)/script/$(SUBDIR)/, $(SCRIPT_CPP_FILES:$(SRC)/$(SUBDIR)/script/%.cpp=%$(EXE_EXT).ok))
 
 LINK_DEP_FILES := $(addsuffix $(LIB_EXT), $(addprefix $(BIN)/lib,$(DEPENDS)))
-LINK_DEP_FILES := $(LINK_DEP_FILES) $(addsuffix .a, $(addprefix $(BOOSTDIR)/lib, $(EXT)))
+LINK_DEP_FILES := $(LINK_DEP_FILES) $(addsuffix .a, $(addprefix $(BOOST_LIB)/lib, $(EXT)))
 
 ifneq ($(LIB),)
 GOAL := $(BIN)/lib$(LIB)$(LIB_EXT)

@@ -55,10 +55,10 @@ endif
 # Check g++ support for c++14
 #
 
-CHECK_C14 := $(shell echo "int main(int argc, char *argv[]) { auto x = 0; return x; }" >/tmp/check_c14.cpp; g++ -std=c++14 2>&1 /tmp/check_c11.cpp -o /tmp/c14_check.out)
+CHECK_C14 := $(shell echo "int main(int argc, char *argv[]) { auto x = 0; return x; }" >/tmp/check_c14.cpp; g++ -std=c++14 2>&1 /tmp/check_c14.cpp -o /tmp/c14_check.out)
 
 ifneq "$(CHECK_C14)" ""
-   $(call err, Error while checking support for C++14 for g++. Please check installation.)
+   $(call err, Error while checking support for c++14 for g++. Please check installation: $(CHECK_C14))
 endif
 
 #
@@ -75,13 +75,14 @@ endif
 # Check for BOOST
 #
 
-CHECK_BOOST := $(shell echo "\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_boost.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
+
+CHECK_BOOST := $(shell echo "#include <boost/version.hpp>\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_boost.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost.cpp -o /tmp/check_boost.out)
 
 ifneq "$(CHECK_BOOST)" ""
    $(call err, Couldn't find BOOST. Please download and install BOOST v$(BOOST_REQ_STR) or later.)
 endif
 
-CHECK_BOOST_VERSION := $(shell echo "\#include <stdio.h>\n\#include <boost/version.hpp>\nint main(int argc, char *argv[]) { printf(\"version %s\", BOOST_LIB_VERSION); return !(BOOST_VERSION >= $(BOOST_REQ)); }" >/tmp/check_boost_ver.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost_ver.cpp -o /tmp/check_boost_ver.out; /tmp/check_boost_ver.out; echo exit is $$?)
+CHECK_BOOST_VERSION := $(shell echo "#include <stdio.h>\n#include <boost/version.hpp>\nint main(int argc, char *argv[]) { printf(\"version %s\", BOOST_LIB_VERSION); return !(BOOST_VERSION >= $(BOOST_REQ)); }" >/tmp/check_boost_ver.cpp; g++ -I $(BOOST_INCLUDE) -std=c++14 2>&1 /tmp/check_boost_ver.cpp -o /tmp/check_boost_ver.out; /tmp/check_boost_ver.out; echo exit is $$?)
 
 ifeq "$(findstring exit is 0, $(CHECK_BOOST_VERSION))" ""
    FOUND_VER := $(shell echo $(CHECK_BOOST_VERSION) | sed -n 's/.*version \([[:digit:]]*_[[:digit:]]*\).*/\1/p')
@@ -92,7 +93,7 @@ endif
 # Check for libsecp256k1-zkp
 #
 
-CHECK_SECP256K1 := $(shell echo "\#include \"../../src/secp256k1/secp256k1.hpp\"\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_secp256k1.cpp; rm -f /tmp/check_secp256k1.out; g++ -I . -I ../../../secp256k1-zkp -I ../../../secp256k1-zkp/src -std=c++14 /tmp/check_secp256k1.cpp -o /tmp/check_secp256k1.out 2>&1; /tmp/check_secp256k1.out; echo exit is $$?)
+CHECK_SECP256K1 := $(shell echo "#include \"../../src/secp256k1/secp256k1.hpp\"\nint main(int argc, char *argv[]) { return 0; }" >/tmp/check_secp256k1.cpp; rm -f /tmp/check_secp256k1.out; g++ -I . -I ../../../secp256k1-zkp -I ../../../secp256k1-zkp/src -std=c++14 /tmp/check_secp256k1.cpp -o /tmp/check_secp256k1.out 2>&1; /tmp/check_secp256k1.out; echo exit is $$?)
 
 ifeq "$(findstring exit is 0, $(CHECK_SECP256K1))" ""
    $(call err, Couldn't find secp256k1-zkp. Issue git clone https://github.com/datavetaren/secp256k1-zkp parallel to epilog.)

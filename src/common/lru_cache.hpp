@@ -13,11 +13,11 @@ template<typename K, typename V> struct lru_cache_callback_nop {
     
 template<typename K, typename V, typename C = lru_cache_callback_nop<K,V> > class lru_cache {
 public:
-    typedef K key_type;
-    typedef V value_type;
+    using key_type = K;
+    using value_type = V;
 
-    inline lru_cache(size_t capacity) : capacity_(capacity), callback_() { }
-    inline lru_cache(size_t capacity, const C &callback) : capacity_(capacity), callback_(callback) { }
+    inline lru_cache(std::size_t capacity) : capacity_(capacity), callback_() { }
+    inline lru_cache(std::size_t capacity, const C &callback) : capacity_(capacity), callback_(callback) { }
     inline ~lru_cache() { clear(); }
 
     inline void set_callback(C &callback) { callback_ = callback; }
@@ -76,7 +76,7 @@ public:
 
 private:
     typedef typename std::list<K>::iterator access_iterator_type;
-    size_t capacity_;
+    std::size_t capacity_;
     std::unordered_map<K, std::pair<V , access_iterator_type> > map_;
     std::list<K> access_;
     C callback_;

@@ -256,7 +256,7 @@ void interpreter_base::init()
     track_cost_ = false;
     file_id_count_ = 3;
     num_of_args_= 0;
-    memset(register_ai_, 0, sizeof(register_ai_));
+    memset(&register_ai_, 0, sizeof(register_ai_));
     stack_ = reinterpret_cast<word_t *>(new char[MAX_STACK_SIZE]);
     num_y_fn_ = &num_y;
     save_state_fn_ = &save_state;
@@ -1141,7 +1141,7 @@ void interpreter_base::abort(const interpreter_exception &ex)
 void interpreter_base::prepare_execution()
 {
     num_of_args_= 0;
-    memset(register_ai_, 0, sizeof(register_ai_));
+    memset(&register_ai_, 0, sizeof(register_ai_));
     top_fail_ = false;
     complete_ = false;
     register_top_b_ = register_b_;

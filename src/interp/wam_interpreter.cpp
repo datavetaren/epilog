@@ -205,7 +205,7 @@ void wam_interpreter::total_reset()
     set_gc_roots_fn( &gc_roots);
     set_save_restore_state_fns( &save_state, &restore_state );
     register_s_ = 0;
-    memset(register_xn_, 0, sizeof(register_xn_));
+    memset(&register_xn_, 0, sizeof(register_xn_));
     if (compiler_) delete compiler_;
     for (auto *m : hash_maps_) delete m;
     hash_maps_.clear();
