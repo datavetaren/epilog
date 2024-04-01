@@ -40,7 +40,7 @@ HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/*boos
 BOOST_THREAD_LIB := $(if $(HAS_BOOST_THREAD_MT),boost_thread-mt,boost_thread)
 EXT := $(subst boost_thread, $(BOOST_THREAD_LIB), $(EXT))
 
-CCINC := $INCDIR) $(BOOST_INCLUDE)
+CCFLAGS := $(INCDIR) $(BOOST_INCLUDE)
 
 ifneq ($(INCDIR),)
    CCFLAGS := $(CCFLAGS) $(foreach d, $(INCDIR), $(CCINC) $(d))
