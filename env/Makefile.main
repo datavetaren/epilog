@@ -25,7 +25,10 @@ ifeq ($(UNAME),Darwin)
    DBG := gtimeout 1000s
 endif
 
-BOOST_ROOT := $(shell brew --cellar)/boost/$(shell ls $(shell brew --cellar)/boost)
+ifeq ($(UNAME),Darwin)
+    BOOST_ROOT := $(shell brew --cellar)/boost/$(shell ls $(shell brew --cellar)/boost)
+endif
+
 BOOST_INCLUDE := $(BOOST_ROOT)/include
 
 BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))

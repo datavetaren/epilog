@@ -7,8 +7,8 @@
 #
 # BASE REQUIREMENTS
 #
-BOOST_REQ := 108400
-BOOST_REQ_STR := 1_84
+BOOST_REQ := 107400
+BOOST_REQ_STR := 1_74
 
 #
 # My error function
@@ -57,7 +57,7 @@ endif
 
 CHECK_C14 := $(shell echo "int main(int argc, char *argv[]) { auto x = 0; return x; }" >/tmp/check_c14.cpp; g++ -std=c++14 2>&1 /tmp/check_c11.cpp -o /tmp/c14_check.out)
 
-ifneq "$(CHECK_C11)" ""
+ifneq "$(CHECK_C14)" ""
    $(call err, Error while checking support for C++14 for g++. Please check installation.)
 endif
 
