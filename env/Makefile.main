@@ -33,7 +33,7 @@ GCCLIBPATH := $(GCCLIBPATH):$(LIBRARY_PATH)
 GCCLIBDIRS := $(subst :, ,$(GCCLIBPATH))
 BOOSTDIR := $(dir $(firstword $(sort $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/libboost_filesystem.a)))))
 ifeq ($(BOOSTDIR),)
-    BOOSTDIR := $(BOOST_ROOT/lib
+    BOOSTDIR := $(BOOST_ROOT)/lib
 endif
 
 HAS_BOOST_THREAD_MT := $(strip $(foreach d, $(GCCLIBDIRS), $(wildcard $(d)/*boost_thread-mt*)))
