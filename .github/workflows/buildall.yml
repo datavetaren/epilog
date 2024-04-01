@@ -20,13 +20,13 @@ jobs:
     - name: build
       run: make all
     - name: zip
-      run: cd bin && zip -r epilog_macosx_catalina_latest.zip epilogd epilog-data
+      run: cd bin && zip -r epilog_macosx_monterey_latest.zip epilogd epilog-data
     - name: release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: bin/epilog_macosx_catalina_latest.zip
-        asset_name: epilog_macosx_catalina_latest.zip
+        file: bin/epilog_macosx_monterey_latest.zip
+        asset_name: epilog_macosx_monterey_latest.zip
         tag: ${{ github.ref }}
         overwrite: true
         body: "Latest build of Epilog"
@@ -62,7 +62,7 @@ jobs:
     - name: download boost
       shell: powershell
       run: |
-        $uri = 'http://www.blecktornet.se/boost/boost_1_84_0.zip'
+        $uri = 'https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.zip'
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $uri -OutFile C:\boost.zip -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
     - name: install boost
