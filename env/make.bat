@@ -84,6 +84,8 @@ GOTO:EOF
 set CHOOSEVC=%1
 set VCDIR=notfound
 set VCNAME=notfound
+IF "!VCDIR!"=="notfound" call :CHECKVC "%PROGRAMFILES%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\" VS2022 "%CHOOSEVC%" VCDIR VCNAME
+IF "!VCDIR!"=="notfound" call :CHECKVC "%PROGRAMFILES%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\" VS2022 "%CHOOSEVC%" VCDIR VCNAME
 IF "!VCDIR!"=="notfound" call :CHECKVC "%PROGRAMFILES(x86)%\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\" VS2019 "%CHOOSEVC%" VCDIR VCNAME
 IF "!VCDIR!"=="notfound" call :CHECKVC "%PROGRAMFILES(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\" VS2019 "%CHOOSEVC%" VCDIR VCNAME
 IF "!VCDIR!"=="notfound" call :CHECKVC "%PROGRAMFILES(x86)%\Microsoft Visual Studio\2017\Professional\VC\Auxiliary\Build\" VS2017 "%CHOOSEVC%" VCDIR VCNAME
