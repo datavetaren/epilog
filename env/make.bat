@@ -3,7 +3,7 @@
 REM -- Change settings here -------------------------------------------
 
 REM To set a specific VC: SET CHOOSEVC=2017, 2019, ...
-SET CHOOSEVC=2019
+SET CHOOSEVC=2022
 
 REM Set 32-bit or 64-bit version
 SET BIT=64
@@ -37,8 +37,6 @@ GOTO :MAIN
 SETLOCAL ENABLEDELAYEDEXPANSION
 set VCVARSDIR=
 call :SELECTVC "%CHOOSEVC%" VCVARSDIR VCNAME
-ECHO Visual directory is !VCVARSDIR!
-ECHO Visual version is !VCNAME!
 ECHO !VCVARSDIR! >%TEMP%\vcvarsdir.txt
 ECHO !VCNAME! >%TEMP%\vcname.txt
 ENDLOCAL
