@@ -78,13 +78,13 @@ jobs:
     - name: zip
       shell: cmd
       run: |
-        cd bin && "C:\Program Files\7-Zip\7z.exe" a -tzip -r epilog_windows_11_latest.zip epilogd.exe epilog-data
+        cd bin && "C:\Program Files\7-Zip\7z.exe" a -tzip -r epilog_windows_latest.zip epilogd.exe epilog-data
     - name: release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: bin/epilog_windows_11_latest.zip
-        asset_name: epilog_windows_11_latest.zip
+        file: bin/epilog_windows_latest.zip
+        asset_name: epilog_windows_latest.zip
         tag: ${{ github.ref }}
         overwrite: true
         body: "Latest build of Epilog"
