@@ -143,7 +143,7 @@ size_t term_utils::simple_hash(term t) const {
 	break;
     default:
         assert(false);
-	break;
+        return 0; // Prevent warning in Visual Studio
     }
 }
     
