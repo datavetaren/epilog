@@ -6,9 +6,9 @@ Mission: Combining Prolog, blockchain and cryptocurrency.
 
 ## Latest Epilog binaries (automatically updated)
 
-* [Linux Ubuntu 18](https://github.com/datavetaren/epilog/releases/download/master/epilog_linux_ubuntu_18_latest.zip)
-* [Mac OSX Catalina](https://github.com/datavetaren/epilog/releases/download/master/epilog_macosx_catalina_latest.zip)
-* [Windows 10](https://github.com/datavetaren/epilog/releases/download/master/epilog_windows_10_latest.zip)
+* [Linux Ubuntu 22](https://github.com/datavetaren/epilog/releases/download/master/epilog_linux_ubuntu_22_latest.zip)
+* [Mac OSX Monterey](https://github.com/datavetaren/epilog/releases/download/master/epilog_macosx_monterey_latest.zip)
+* [Windows 10/11](https://github.com/datavetaren/epilog/releases/download/master/epilog_windows_latest.zip)
 
 ## How to build from source
 
