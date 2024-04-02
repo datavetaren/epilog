@@ -60,9 +60,6 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
-    - name: print env
-      shell: cmd
-      run: dir "%PROGRAMFILES%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\"
     - name: download boost
       shell: powershell
       run: |

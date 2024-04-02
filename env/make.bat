@@ -37,6 +37,8 @@ GOTO :MAIN
 SETLOCAL ENABLEDELAYEDEXPANSION
 set VCVARSDIR=
 call :SELECTVC "%CHOOSEVC%" VCVARSDIR VCNAME
+ECHO Visual directory is !VCVARSDIR!
+ECHO Visual version is !VCNAME!
 ECHO !VCVARSDIR! >%TEMP%\vcvarsdir.txt
 ECHO !VCNAME! >%TEMP%\vcname.txt
 ENDLOCAL
@@ -50,7 +52,9 @@ IF %BIT%==32 (
     CALL "%VCVARSDIR%\vcvars32.bat" >NUL
 )
 IF %BIT%==64 (
-    CALL "%VCVARSDIR%\vcvarsx86_amd64.bat" >NUL
+    ECHO The dir chosen is %VCVARSDIR%
+    CALL "%VCVARSDIR%\vcvarsx86_amd64.bat"
+REM CALL "%VCVARSDIR%\vcvarsx86_amd64.bat" >NUL
 )
 
 GOTO:MAIN
