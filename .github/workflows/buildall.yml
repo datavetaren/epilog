@@ -60,6 +60,15 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+    - name: print env
+      shell: cmd
+      run: |
+        dir "%PROGRAMFILES%"
+	echo "----------------------------------------"
+	dir "%PROGRAMFILES%\Microsoft Visual Studio\"
+	echo "----------------------------------------"
+	dir "%PROGRAMFILES%\Microsoft Visual Studio\2022\"
+	echo "-------------------------------------------"
     - name: download boost
       shell: powershell
       run: |
