@@ -3,7 +3,7 @@
 REM -- Change settings here -------------------------------------------
 
 REM To set a specific VC: SET CHOOSEVC=2017, 2019, ...
-SET CHOOSEVC=2022
+SET CHOOSEVC=2019
 
 REM Set 32-bit or 64-bit version
 SET BIT=64

@@ -57,7 +57,7 @@ jobs:
         overwrite: true
         body: "Latest build of Epilog"
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
     - name: download boost
