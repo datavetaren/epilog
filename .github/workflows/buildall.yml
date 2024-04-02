@@ -62,13 +62,13 @@ jobs:
     - name: download boost
       shell: powershell
       run: |
-        $uri = 'https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.zip'
+        $uri = 'https://boostorg.jfrog.io/artifactory/main/release/1.74.0/binaries/boost_1_74_0-msvc-14.2-64.exe
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri $uri -OutFile C:\boost.zip -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+        Invoke-WebRequest -Uri $uri -OutFile C:\boost.exe -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
     - name: install boost
       shell: cmd
       run: |
-        C: && cd \ && "C:\Program Files\7-Zip\7z.exe" x -tzip C:\boost.zip
+        C: && cd \ && "C:\boost.exe" /sp- /silent /suppressmsgboxes /norestart
     - name: libsecp
       run: git clone https://github.com/datavetaren/secp256k1-zkp ../secp256k1-zkp
     - name: build
