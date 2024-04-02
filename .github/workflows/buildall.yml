@@ -3,6 +3,7 @@ name: Epilog Build
 on:
   push:
     branches: [ master ]
+    paths: [ 'env/rebuild.txt' ]
   pull_request:
     branches: [ master ]
 
