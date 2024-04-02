@@ -50,9 +50,7 @@ IF %BIT%==32 (
     CALL "%VCVARSDIR%\vcvars32.bat" >NUL
 )
 IF %BIT%==64 (
-    ECHO The dir chosen is %VCVARSDIR%
-    CALL "%VCVARSDIR%\vcvarsx86_amd64.bat"
-REM CALL "%VCVARSDIR%\vcvarsx86_amd64.bat" >NUL
+    CALL "%VCVARSDIR%\vcvarsx86_amd64.bat" >NUL
 )
 
 GOTO:MAIN
@@ -552,6 +550,9 @@ SET VCVER=
 WHERE cl.exe >%TEMP%\cl.txt
 SET /P CLTXT=<%TEMP%\cl.txt
 
+IF "!VCVER!"=="" IF NOT "!CLTXT:14.3=!"=="!CLTXT!" (
+   SET VCVER=14.3
+)
 IF "!VCVER!"=="" IF NOT "!CLTXT:14.2=!"=="!CLTXT!" (
    SET VCVER=14.2
 )
