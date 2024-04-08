@@ -17,7 +17,7 @@ Go to some directory:
 ```
 > git clone https://github.com/datavetaren/epilog
 > git clone https://github.com/datavetaren/secp256k1-zkp
-> [install C++ Boost, 1.62 or later]
+> [install C++ Boost, 1.74 or later]
 > cd epilog
 > make all
 ```
